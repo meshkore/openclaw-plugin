@@ -34,7 +34,7 @@ import { registerMeshCli } from "./src/commands.js";
 import { COMMONS_CLUSTER_ID } from "./src/mesh-client.js";
 
 const meshkore_plugin_default = definePluginEntry({
-	id: "meshkore",
+	id: "meshkore-plugin",
 	name: "MeshKore",
 	description: "Personal agent with a heartbeat on the MeshKore Cluster/Wall/Board network",
 	register(api) {

@@ -1,11 +1,15 @@
 {
-  "name": "@meshkore/openclaw-plugin",
+  "name": "meshkore-plugin",
   "version": "0.1.0",
   "private": true,
   "description": "OpenClaw plugin — gives a personal agent a heartbeat on the MeshKore Cluster/Wall/Board network",
   "type": "module",
   "license": "MIT",
   "homepage": "https://meshkore.com/plugin/openclaw",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meshkore/openclaw-plugin.git"
+  },
   "main": "./index.js",
   "scripts": {
     "test": "node --test",
@@ -34,7 +38,12 @@
       "./index.js"
     ],
     "compat": {
-      "pluginApi": ">=2026.7.1"
+      "pluginApi": ">=2026.7.1",
+      "minGatewayVersion": "2026.7.1"
+    },
+    "build": {
+      "openclawVersion": "2026.7.1-2",
+      "pluginSdkVersion": "2026.7.1-2"
     }
   }
 }

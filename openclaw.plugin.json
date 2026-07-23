@@ -1,5 +1,5 @@
 {
-  "id": "meshkore",
+  "id": "meshkore-plugin",
   "name": "MeshKore",
   "enabledByDefault": false,
   "activation": {
