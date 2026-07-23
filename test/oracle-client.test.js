@@ -23,6 +23,7 @@ test("searchAgents — posts to /v1/search with query + filters", async () => {
 		const body = JSON.parse(calledOpts.body);
 		assert.equal(body.query, "vuelo a Roma");
 		assert.equal(body.filters.limit, 3);
+		assert.equal(body.audience, "personal");
 	} finally {
 		restore();
 	}

@@ -60,11 +60,19 @@ async function oracleRequest(method, path, body) {
  * POST /v1/search — natural-language ranked search across the Oracle's
  * global agent/service directory. Same contract the retired `meshkore`
  * skill's CLI used (`meshkore search --json`).
+ *
+ * `audience: "personal"` is forward-compatible instrumentation for
+ * `oracle-personal-audience` (Layer 2, design-only as of 2026-07-23) — the
+ * Oracle doesn't act on it yet (verified: `agent_card.category`/`tags` are
+ * empty on every real result, so there's nothing to filter by today), but
+ * sending it now means no client-side change is needed once that
+ * initiative lands server-side filtering/ranking logic.
  */
 export function searchAgents(query, { limit, maxPriceUsd, tags, onlineOnly } = {}) {
 	return oracleRequest("POST", "/v1/search", {
 		query,
 		source: "mesh",
+		audience: "personal",
 		filters: {
 			...(limit ? { limit } : {}),
 			...(maxPriceUsd ? { max_price_usd: maxPriceUsd } : {}),
