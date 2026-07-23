@@ -30,6 +30,7 @@ import { createHeartbeatService } from "./src/heartbeat.js";
 import { createBoardNoveltyTick, SeenPostsStore, wireWallDelivery } from "./src/novelty.js";
 import { MeshRuntime } from "./src/runtime.js";
 import { createMeshTools } from "./src/tools.js";
+import { createOracleTools } from "./src/oracle-tools.js";
 import { registerMeshCli } from "./src/commands.js";
 import { COMMONS_CLUSTER_ID } from "./src/mesh-client.js";
 
@@ -94,7 +95,11 @@ const meshkore_plugin_default = definePluginEntry({
 		})();
 		ready.catch((err) => log(`init failed: ${err.stack}`));
 
-		for (const tool of createMeshTools(() => ({ ...state, ready }), { log })) {
+		const allTools = [
+			...createMeshTools(() => ({ ...state, ready }), { log }),
+			...createOracleTools(() => ({ ...state, ready }), { log })
+		];
+		for (const tool of allTools) {
 			api.registerTool({
 				name: tool.name,
 				label: tool.label,

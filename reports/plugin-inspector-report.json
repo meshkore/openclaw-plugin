@@ -24,7 +24,7 @@
   },
   "fixtures": [
     {
-      "id": "openclaw-plugin",
+      "id": "meshkore-plugin",
       "name": "MeshKore",
       "priority": "high",
       "seams": [
@@ -39,8 +39,8 @@
         {
           "name": "heartbeat_prompt_contribution",
           "file": "index.js",
-          "line": 112,
-          "ref": "index.js:112"
+          "line": 117,
+          "ref": "index.js:117"
         }
       ],
       "registrations": [
@@ -53,26 +53,26 @@
         {
           "name": "definePluginEntry",
           "file": "index.js",
-          "line": 36,
-          "ref": "index.js:36"
+          "line": 37,
+          "ref": "index.js:37"
         },
         {
           "name": "registerCli",
           "file": "index.js",
-          "line": 119,
-          "ref": "index.js:119"
+          "line": 124,
+          "ref": "index.js:124"
         },
         {
           "name": "registerService",
           "file": "index.js",
-          "line": 142,
-          "ref": "index.js:142"
+          "line": 147,
+          "ref": "index.js:147"
         },
         {
           "name": "registerTool",
           "file": "index.js",
-          "line": 98,
-          "ref": "index.js:98"
+          "line": 103,
+          "ref": "index.js:103"
         }
       ],
       "manifestContracts": [
@@ -93,13 +93,15 @@
         "src/memory.js",
         "src/mesh-client.js",
         "src/novelty.js",
+        "src/oracle-client.js",
+        "src/oracle-tools.js",
         "src/runtime.js",
         "src/tools.js"
       ],
       "pluginManifests": [
         {
           "path": "openclaw.plugin.json",
-          "id": "meshkore",
+          "id": "meshkore-plugin",
           "name": "MeshKore",
           "version": null,
           "keys": [
@@ -128,8 +130,8 @@
       "securityManifests": [],
       "package": {
         "path": "package.json",
-        "name": "@meshkore/openclaw-plugin",
-        "version": "0.1.0",
+        "name": "meshkore-plugin",
+        "version": "0.2.0",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -154,8 +156,8 @@
           "runtimeExtensions": [],
           "setupEntry": null,
           "compatPluginApi": ">=2026.7.1",
-          "buildOpenClawVersion": null,
-          "buildPluginSdkVersion": null,
+          "buildOpenClawVersion": "2026.7.1-2",
+          "buildPluginSdkVersion": "2026.7.1-2",
           "install": null,
           "release": null,
           "unsupportedMetadata": [],
@@ -173,8 +175,8 @@
       "packages": [
         {
           "path": "package.json",
-          "name": "@meshkore/openclaw-plugin",
-          "version": "0.1.0",
+          "name": "meshkore-plugin",
+          "version": "0.2.0",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -199,8 +201,8 @@
             "runtimeExtensions": [],
             "setupEntry": null,
             "compatPluginApi": ">=2026.7.1",
-            "buildOpenClawVersion": null,
-            "buildPluginSdkVersion": null,
+            "buildOpenClawVersion": "2026.7.1-2",
+            "buildPluginSdkVersion": "2026.7.1-2",
             "install": null,
             "release": null,
             "unsupportedMetadata": [],
@@ -273,7 +275,7 @@
   "contractProbes": [],
   "logs": [
     {
-      "fixture": "openclaw-plugin",
+      "fixture": "meshkore-plugin",
       "code": "seam-inventory",
       "level": "log",
       "message": "observed 1 hooks, 4 registrations, and 1 manifest contracts",
@@ -287,18 +289,18 @@
       ]
     },
     {
-      "fixture": "openclaw-plugin",
+      "fixture": "meshkore-plugin",
       "code": "package-metadata",
       "level": "log",
       "message": "selected package metadata for plugin contract checks",
       "evidence": [
         "package.json",
-        "@meshkore/openclaw-plugin",
-        "version:0.1.0"
+        "meshkore-plugin",
+        "version:0.2.0"
       ]
     },
     {
-      "fixture": "openclaw-plugin",
+      "fixture": "meshkore-plugin",
       "code": "declarative-contracts",
       "level": "log",
       "message": "fixture declares manifest contracts that can be checked without executing plugin code",

@@ -116,7 +116,7 @@ _none_
 
 | Fixture         | Priority | Seams        | Hooks                         | Registrations                                                 | Manifest contracts |
 | --------------- | -------- | ------------ | ----------------------------- | ------------------------------------------------------------- | ------------------ |
-| openclaw-plugin | high     | dynamic-tool | heartbeat_prompt_contribution | definePluginEntry, registerCli, registerService, registerTool | tools              |
+| meshkore-plugin | high     | dynamic-tool | heartbeat_prompt_contribution | definePluginEntry, registerCli, registerService, registerTool | tools              |
 
 ## Decision Matrix
 
@@ -126,7 +126,7 @@ _none_
 
 | Fixture         | Code                        | Level | Message                                                                               | Evidence                                                                                                                                                                      | Compat record |
 | --------------- | --------------------------- | ----- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| openclaw-plugin | seam-inventory              | log   | observed 1 hooks, 4 registrations, and 1 manifest contracts                           | hook:heartbeat_prompt_contribution, registration:definePluginEntry, registration:registerCli, registration:registerService, registration:registerTool, manifestContract:tools | -             |
-| openclaw-plugin | package-metadata            | log   | selected package metadata for plugin contract checks                                  | package.json, @meshkore/openclaw-plugin, version:0.1.0                                                                                                                        | -             |
-| openclaw-plugin | declarative-contracts       | log   | fixture declares manifest contracts that can be checked without executing plugin code | tools                                                                                                                                                                         | -             |
+| meshkore-plugin | seam-inventory              | log   | observed 1 hooks, 4 registrations, and 1 manifest contracts                           | hook:heartbeat_prompt_contribution, registration:definePluginEntry, registration:registerCli, registration:registerService, registration:registerTool, manifestContract:tools | -             |
+| meshkore-plugin | package-metadata            | log   | selected package metadata for plugin contract checks                                  | package.json, meshkore-plugin, version:0.2.0                                                                                                                                  | -             |
+| meshkore-plugin | declarative-contracts       | log   | fixture declares manifest contracts that can be checked without executing plugin code | tools                                                                                                                                                                         | -             |
 | openclaw        | target-openclaw-unavailable | log   | target OpenClaw checkout was not available, so compat record coverage was not checked | not configured                                                                                                                                                                | -             |

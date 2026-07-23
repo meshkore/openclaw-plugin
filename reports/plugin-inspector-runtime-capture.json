@@ -9,12 +9,12 @@
     "capturedCount": 2,
     "skippedCount": 0,
     "failedCount": 0,
-    "registrationCount": 22,
+    "registrationCount": 25,
     "hookCount": 1
   },
   "results": [
     {
-      "fixture": "openclaw-plugin",
+      "fixture": "meshkore-plugin",
       "packagePath": "package.json",
       "entrypoint": "index.js",
       "status": "captured",
@@ -345,6 +345,60 @@
           ]
         },
         {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "search_agents"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "contact_agent"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "check_agent_reputation"
+            }
+          ]
+        },
+        {
           "kind": "hook",
           "name": "heartbeat_prompt_contribution",
           "handlerType": "function",
@@ -394,10 +448,14 @@
             }
           ]
         }
-      ]
+      ],
+      "processOutput": {
+        "stdout": "[meshkore] ready — handle=openclaw-b54de5bd\n",
+        "stderr": ""
+      }
     },
     {
-      "fixture": "openclaw-plugin",
+      "fixture": "meshkore-plugin",
       "packagePath": "test/fixtures/decoy-car-rental-plugin/package.json",
       "entrypoint": "test/fixtures/decoy-car-rental-plugin/index.js",
       "status": "captured",

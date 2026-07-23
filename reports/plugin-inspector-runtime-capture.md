@@ -10,12 +10,12 @@ Generated: deterministic
 | Captured | 2 |
 | Skipped | 0 |
 | Failed | 0 |
-| Registrations | 22 |
+| Registrations | 25 |
 | Hooks | 1 |
 
 ## Entrypoints
 
 | Fixture | Status | Entrypoint | Captured |
 | --- | --- | --- | --- |
-| openclaw-plugin | captured | index.js | registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, hook:heartbeat_prompt_contribution, registration:registerCli, registration:registerService |
-| openclaw-plugin | captured | test/fixtures/decoy-car-rental-plugin/index.js | registration:registerTool, registration:registerTool |
+| meshkore-plugin | captured | index.js | registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, registration:registerTool, hook:heartbeat_prompt_contribution, registration:registerCli, registration:registerService |
+| meshkore-plugin | captured | test/fixtures/decoy-car-rental-plugin/index.js | registration:registerTool, registration:registerTool |
