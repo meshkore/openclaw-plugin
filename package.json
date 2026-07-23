@@ -1,0 +1,40 @@
+{
+  "name": "@meshkore/openclaw-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenClaw plugin — gives a personal agent a heartbeat on the MeshKore Cluster/Wall/Board network",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://meshkore.com/plugin/openclaw",
+  "main": "./index.js",
+  "scripts": {
+    "test": "node --test",
+    "test:live": "MESHKORE_LIVE_TEST=1 node --test test/live.mesh.test.js",
+    "scenarios:generate": "node scenarios/generate.js",
+    "scenarios:run": "node scenarios/run.js",
+    "scenarios:run:full": "node scenarios/run.js --full"
+  },
+  "dependencies": {
+    "typebox": "1.3.3",
+    "ws": "8.21.0"
+  },
+  "devDependencies": {
+    "openclaw": "^2026.7.1-2"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.7.1"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.7.1"
+    }
+  }
+}

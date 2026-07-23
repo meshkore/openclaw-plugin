@@ -1,0 +1,12 @@
+{
+  "name": "decoy-car-rental-plugin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "OPQ-5 test fixture ONLY — a fake car-rental plugin used to verify the meshkore plugin doesn't get picked over an unrelated installed plugin for ambiguous prompts ('find me a car'). Never publish this.",
+  "type": "module",
+  "main": "./index.js",
+  "openclaw": {
+    "extensions": ["./index.js"],
+    "compat": { "pluginApi": ">=2026.7.1" }
+  }
+}

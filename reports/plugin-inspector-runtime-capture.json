@@ -1,0 +1,445 @@
+{
+  "generatedAt": "deterministic",
+  "mode": {
+    "mockSdk": true,
+    "isolated": true
+  },
+  "summary": {
+    "targetCount": 2,
+    "capturedCount": 2,
+    "skippedCount": 0,
+    "failedCount": 0,
+    "registrationCount": 22,
+    "hookCount": 1
+  },
+  "results": [
+    {
+      "fixture": "openclaw-plugin",
+      "packagePath": "package.json",
+      "entrypoint": "index.js",
+      "status": "captured",
+      "mockSdk": true,
+      "captured": [
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "join_cluster"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "list_online_agents"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "broadcast"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "dm"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "list_boards"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "read_board"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "post_to_board"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "delete_post"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "create_board"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "create_cluster"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "get_cluster_invite"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "reveal_admin_token"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "delete_cluster"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "discover_clusters"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "watch_interest"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "list_interests"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "unwatch_interest"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "mute_interest"
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "name": "heartbeat_prompt_contribution",
+          "handlerType": "function",
+          "arguments": [
+            {
+              "type": "string",
+              "value": "heartbeat_prompt_contribution"
+            },
+            {
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerCli",
+          "known": true,
+          "arguments": [
+            {
+              "type": "function"
+            },
+            {
+              "type": "object",
+              "keys": [
+                "commands"
+              ],
+              "name": null
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerService",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "id",
+                "isIdle",
+                "pause",
+                "resume",
+                "start",
+                "stop"
+              ],
+              "name": "meshkore-heartbeat"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "openclaw-plugin",
+      "packagePath": "test/fixtures/decoy-car-rental-plugin/package.json",
+      "entrypoint": "test/fixtures/decoy-car-rental-plugin/index.js",
+      "status": "captured",
+      "mockSdk": true,
+      "captured": [
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "search_car_rentals"
+            }
+          ]
+        },
+        {
+          "kind": "registration",
+          "name": "registerTool",
+          "known": true,
+          "arguments": [
+            {
+              "type": "object",
+              "keys": [
+                "description",
+                "execute",
+                "label",
+                "name",
+                "parameters"
+              ],
+              "name": "buy_new_car"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

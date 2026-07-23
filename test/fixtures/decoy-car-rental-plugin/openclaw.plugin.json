@@ -1,0 +1,13 @@
+{
+  "id": "decoy-car-rental",
+  "name": "Decoy Car Rental (OPQ-5 test fixture only)",
+  "enabledByDefault": false,
+  "contracts": {
+    "tools": ["search_car_rentals", "buy_new_car"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

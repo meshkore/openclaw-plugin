@@ -1,0 +1,320 @@
+{
+  "generatedAt": "deterministic",
+  "targetOpenClaw": {
+    "configuredPath": null,
+    "status": "disabled",
+    "compatRecords": [],
+    "compatRecordStatuses": {},
+    "hookNames": [],
+    "apiRegistrars": [],
+    "capturedRegistrars": [],
+    "sdkExports": [],
+    "reservedSdkExports": [],
+    "supportedFacadeSdkExports": [],
+    "publicPluginOwnedSdkExports": [],
+    "manifestFields": [],
+    "manifestContractFields": []
+  },
+  "status": "pass",
+  "summary": {
+    "breakageCount": 0,
+    "warningCount": 0,
+    "deprecationWarningCount": 0,
+    "issueCount": 0
+  },
+  "fixtures": [
+    {
+      "id": "openclaw-plugin",
+      "name": "MeshKore",
+      "priority": "high",
+      "seams": [
+        "dynamic-tool"
+      ],
+      "why": "local OpenClaw plugin root",
+      "status": "ok",
+      "hooks": [
+        "heartbeat_prompt_contribution"
+      ],
+      "hookDetails": [
+        {
+          "name": "heartbeat_prompt_contribution",
+          "file": "index.js",
+          "line": 112,
+          "ref": "index.js:112"
+        }
+      ],
+      "registrations": [
+        "definePluginEntry",
+        "registerCli",
+        "registerService",
+        "registerTool"
+      ],
+      "registrationDetails": [
+        {
+          "name": "definePluginEntry",
+          "file": "index.js",
+          "line": 36,
+          "ref": "index.js:36"
+        },
+        {
+          "name": "registerCli",
+          "file": "index.js",
+          "line": 119,
+          "ref": "index.js:119"
+        },
+        {
+          "name": "registerService",
+          "file": "index.js",
+          "line": 142,
+          "ref": "index.js:142"
+        },
+        {
+          "name": "registerTool",
+          "file": "index.js",
+          "line": 98,
+          "ref": "index.js:98"
+        }
+      ],
+      "manifestContracts": [
+        "tools"
+      ],
+      "manifestFiles": [
+        "openclaw.plugin.json"
+      ],
+      "sourceFiles": [
+        "index.js",
+        "scenarios/anti-interference.js",
+        "scenarios/generate.js",
+        "scenarios/run.js",
+        "src/commands.js",
+        "src/credentials.js",
+        "src/heartbeat.js",
+        "src/identity.js",
+        "src/memory.js",
+        "src/mesh-client.js",
+        "src/novelty.js",
+        "src/runtime.js",
+        "src/tools.js"
+      ],
+      "pluginManifests": [
+        {
+          "path": "openclaw.plugin.json",
+          "id": "meshkore",
+          "name": "MeshKore",
+          "version": null,
+          "keys": [
+            "activation",
+            "commandAliases",
+            "configSchema",
+            "contracts",
+            "enabledByDefault",
+            "id",
+            "name",
+            "skills"
+          ],
+          "contracts": [
+            "tools"
+          ],
+          "providerAuthEnvVars": {},
+          "channelEnvVars": {},
+          "activation": {
+            "onStartup": true,
+            "onConfigPaths": [
+              "meshkore"
+            ]
+          }
+        }
+      ],
+      "securityManifests": [],
+      "package": {
+        "path": "package.json",
+        "name": "@meshkore/openclaw-plugin",
+        "version": "0.1.0",
+        "type": "module",
+        "main": "./index.js",
+        "npmPack": {
+          "advertised": false,
+          "private": true,
+          "filesMode": "implicit",
+          "files": [],
+          "invalidFileSpecs": []
+        },
+        "dependencies": [
+          "typebox",
+          "ws"
+        ],
+        "peerDependencies": [
+          "openclaw"
+        ],
+        "optionalDependencies": [],
+        "openclaw": {
+          "extensions": [
+            "./index.js"
+          ],
+          "runtimeExtensions": [],
+          "setupEntry": null,
+          "compatPluginApi": ">=2026.7.1",
+          "buildOpenClawVersion": null,
+          "buildPluginSdkVersion": null,
+          "install": null,
+          "release": null,
+          "unsupportedMetadata": [],
+          "entrypoints": [
+            {
+              "kind": "extension",
+              "specifier": "./index.js",
+              "relativePath": "index.js",
+              "exists": true,
+              "requiresBuild": false
+            }
+          ]
+        }
+      },
+      "packages": [
+        {
+          "path": "package.json",
+          "name": "@meshkore/openclaw-plugin",
+          "version": "0.1.0",
+          "type": "module",
+          "main": "./index.js",
+          "npmPack": {
+            "advertised": false,
+            "private": true,
+            "filesMode": "implicit",
+            "files": [],
+            "invalidFileSpecs": []
+          },
+          "dependencies": [
+            "typebox",
+            "ws"
+          ],
+          "peerDependencies": [
+            "openclaw"
+          ],
+          "optionalDependencies": [],
+          "openclaw": {
+            "extensions": [
+              "./index.js"
+            ],
+            "runtimeExtensions": [],
+            "setupEntry": null,
+            "compatPluginApi": ">=2026.7.1",
+            "buildOpenClawVersion": null,
+            "buildPluginSdkVersion": null,
+            "install": null,
+            "release": null,
+            "unsupportedMetadata": [],
+            "entrypoints": [
+              {
+                "kind": "extension",
+                "specifier": "./index.js",
+                "relativePath": "index.js",
+                "exists": true,
+                "requiresBuild": false
+              }
+            ]
+          }
+        },
+        {
+          "path": "test/fixtures/decoy-car-rental-plugin/package.json",
+          "name": "decoy-car-rental-plugin",
+          "version": "0.0.1",
+          "type": "module",
+          "main": "./index.js",
+          "npmPack": {
+            "advertised": false,
+            "private": true,
+            "filesMode": "implicit",
+            "files": [],
+            "invalidFileSpecs": []
+          },
+          "dependencies": [],
+          "peerDependencies": [],
+          "optionalDependencies": [],
+          "openclaw": {
+            "extensions": [
+              "./index.js"
+            ],
+            "runtimeExtensions": [],
+            "setupEntry": null,
+            "compatPluginApi": ">=2026.7.1",
+            "buildOpenClawVersion": null,
+            "buildPluginSdkVersion": null,
+            "install": null,
+            "release": null,
+            "unsupportedMetadata": [],
+            "entrypoints": [
+              {
+                "kind": "extension",
+                "specifier": "./index.js",
+                "relativePath": "test/fixtures/decoy-car-rental-plugin/index.js",
+                "exists": true,
+                "requiresBuild": false
+              }
+            ]
+          }
+        }
+      ],
+      "sdkImports": [
+        "openclaw/plugin-sdk/plugin-entry"
+      ],
+      "sdkImportDetails": [
+        {
+          "specifier": "openclaw/plugin-sdk/plugin-entry",
+          "file": "index.js",
+          "line": 24,
+          "ref": "index.js:24"
+        }
+      ],
+      "sdkDeprecations": []
+    }
+  ],
+  "issues": [],
+  "contractProbes": [],
+  "logs": [
+    {
+      "fixture": "openclaw-plugin",
+      "code": "seam-inventory",
+      "level": "log",
+      "message": "observed 1 hooks, 4 registrations, and 1 manifest contracts",
+      "evidence": [
+        "hook:heartbeat_prompt_contribution",
+        "registration:definePluginEntry",
+        "registration:registerCli",
+        "registration:registerService",
+        "registration:registerTool",
+        "manifestContract:tools"
+      ]
+    },
+    {
+      "fixture": "openclaw-plugin",
+      "code": "package-metadata",
+      "level": "log",
+      "message": "selected package metadata for plugin contract checks",
+      "evidence": [
+        "package.json",
+        "@meshkore/openclaw-plugin",
+        "version:0.1.0"
+      ]
+    },
+    {
+      "fixture": "openclaw-plugin",
+      "code": "declarative-contracts",
+      "level": "log",
+      "message": "fixture declares manifest contracts that can be checked without executing plugin code",
+      "evidence": [
+        "tools"
+      ]
+    },
+    {
+      "fixture": "openclaw",
+      "code": "target-openclaw-unavailable",
+      "level": "log",
+      "message": "target OpenClaw checkout was not available, so compat record coverage was not checked",
+      "evidence": [
+        "not configured"
+      ]
+    }
+  ],
+  "decisions": []
+}

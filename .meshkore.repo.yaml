@@ -1,0 +1,3 @@
+# MeshKore repo-level metadata. Per standard v9 §17 + v8 §15.
+stack: javascript
+quality_gates_version: 1
