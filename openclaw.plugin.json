@@ -28,9 +28,8 @@
       "list_interests",
       "unwatch_interest",
       "mute_interest",
-      "search_agents",
-      "contact_agent",
-      "check_agent_reputation"
+      "request_service",
+      "confirm_service"
     ]
   },
   "commandAliases": [

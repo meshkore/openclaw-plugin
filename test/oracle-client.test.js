@@ -138,6 +138,33 @@ test("contactAgent — resolves agent_id via the Oracle when no endpoint given",
 	}
 });
 
+test("contactAgent — resolves a top-level `endpoint` field, not just nested agent_card.endpoint", async () => {
+	// Found live 2026-07-23: the real API puts `endpoint` directly on the
+	// search result for some agents (e.g. roomrover), not nested under
+	// agent_card at all — the retired skill's CLI type only checked the
+	// nested shape, which would have failed silently against real data.
+	let calls = 0;
+	const restore = mockFetch(async (url) => {
+		calls += 1;
+		if (calls === 1) {
+			return {
+				ok: true,
+				status: 200,
+				text: async () => JSON.stringify({ agents: [{ agent_id: "roomrover", endpoint: "https://roomrover.rjj.workers.dev" }] })
+			};
+		}
+		assert.equal(url, "https://roomrover.rjj.workers.dev/v1/search");
+		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+	});
+	try {
+		const r = await contactAgent({ agentId: "roomrover" });
+		assert.equal(r.ok, true);
+		assert.equal(calls, 2);
+	} finally {
+		restore();
+	}
+});
+
 test("contactAgent — unknown agent_id fails clearly, no silent fallback", async () => {
 	const restore = mockFetch(async () => ({
 		ok: true,

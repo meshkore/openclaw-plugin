@@ -9,7 +9,7 @@
     "capturedCount": 2,
     "skippedCount": 0,
     "failedCount": 0,
-    "registrationCount": 25,
+    "registrationCount": 24,
     "hookCount": 1
   },
   "results": [
@@ -358,7 +358,7 @@
                 "name",
                 "parameters"
               ],
-              "name": "search_agents"
+              "name": "request_service"
             }
           ]
         },
@@ -376,25 +376,7 @@
                 "name",
                 "parameters"
               ],
-              "name": "contact_agent"
-            }
-          ]
-        },
-        {
-          "kind": "registration",
-          "name": "registerTool",
-          "known": true,
-          "arguments": [
-            {
-              "type": "object",
-              "keys": [
-                "description",
-                "execute",
-                "label",
-                "name",
-                "parameters"
-              ],
-              "name": "check_agent_reputation"
+              "name": "confirm_service"
             }
           ]
         },
@@ -448,11 +430,7 @@
             }
           ]
         }
-      ],
-      "processOutput": {
-        "stdout": "[meshkore] ready — handle=openclaw-b54de5bd\n",
-        "stderr": ""
-      }
+      ]
     },
     {
       "fixture": "meshkore-plugin",

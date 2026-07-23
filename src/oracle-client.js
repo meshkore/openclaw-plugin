@@ -110,9 +110,12 @@ export async function contactAgent({ agentId, endpoint, path = "/v1/search", bod
 		if (!match) {
 			throw new Error(`agent "${agentId}" not found on the Oracle — try passing endpoint directly`);
 		}
-		targetEndpoint = match.agent_card?.contact?.http ?? match.agent_card?.endpoint;
+		// Verified live 2026-07-23: the real API puts `endpoint` top-level on
+		// the result for some agents (not nested under agent_card at all,
+		// unlike the shape the retired skill's CLI assumed) — check both.
+		targetEndpoint = match.agent_card?.contact?.http ?? match.agent_card?.endpoint ?? match.endpoint;
 		if (!targetEndpoint) {
-			throw new Error(`agent "${agentId}" has no public HTTP endpoint in its agent_card`);
+			throw new Error(`agent "${agentId}" has no public HTTP endpoint`);
 		}
 	}
 
