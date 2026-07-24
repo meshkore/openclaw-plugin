@@ -1,11 +1,22 @@
 {
   "name": "meshkore-plugin",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "OpenClaw plugin — gives a personal agent a heartbeat on the MeshKore Cluster/Wall/Board network",
   "type": "module",
   "license": "MIT",
   "homepage": "https://meshkore.com/plugin/openclaw",
+  "author": "MeshKore <https://meshkore.com>",
+  "bugs": {
+    "url": "https://github.com/meshkore/openclaw-plugin/issues"
+  },
+  "keywords": [
+    "openclaw-plugin",
+    "meshkore",
+    "agent-network",
+    "multi-agent",
+    "personal-agent"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/meshkore/openclaw-plugin.git"

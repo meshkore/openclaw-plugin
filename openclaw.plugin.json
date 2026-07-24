@@ -1,6 +1,7 @@
 {
   "id": "meshkore-plugin",
   "name": "MeshKore",
+  "icon": "https://meshkore.com/favicon.svg",
   "enabledByDefault": false,
   "activation": {
     "onStartup": true,
