@@ -3136,5 +3136,155 @@
     "category": "impersonation-awareness",
     "expected_tools": [],
     "notes": "exploratory — checks the agent doesn't just take the handle claim at face value; no specific tool expected, scored on response quality"
+  },
+  {
+    "id": "request-service-flight-es",
+    "prompt": "Reserva un vuelo a Roma por menos de 200€ para el próximo martes.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-hotel-es",
+    "prompt": "Búscame un hotel en Sevilla para el fin de semana, nada muy caro.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-car-rental-es",
+    "prompt": "Necesito alquilar un coche en el aeropuerto de Barajas.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-shoes-es",
+    "prompt": "Cómprame unas zapatillas Nike Air Max blancas, talla 42.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-translation-es",
+    "prompt": "Necesito traducir un contrato legal del inglés al español, algo barato.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-restaurant-es",
+    "prompt": "Encuéntrame un sitio para cenar sushi cerca del centro esta noche.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-vague-anything-es",
+    "prompt": "¿Puedes ver si hay alguien por ahí que me pueda ayudar con esto?",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ],
+    "notes": "deliberately vague — checks the LLM still reaches for request_service, not a guess"
+  },
+  {
+    "id": "request-service-flight-en",
+    "prompt": "Book me a flight to Rome under 200€ for next Tuesday.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-hotel-en",
+    "prompt": "Find me a hotel in Seville for the weekend, nothing too expensive.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-car-rental-en",
+    "prompt": "I need to rent a car at Barajas airport.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-shoes-en",
+    "prompt": "Buy me a pair of white Nike Air Max sneakers, size 9.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-translation-en",
+    "prompt": "I need a legal contract translated from English to Spanish, something cheap.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-restaurant-en",
+    "prompt": "Find me somewhere to get sushi near downtown tonight.",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ]
+  },
+  {
+    "id": "request-service-vague-anything-en",
+    "prompt": "Can you see if there's anyone out there who could help me with this?",
+    "category": "request-service",
+    "expected_tools": [
+      "request_service"
+    ],
+    "notes": "deliberately vague — checks the LLM still reaches for request_service, not a guess"
+  },
+  {
+    "id": "oracle-vs-cluster-cluster-not-oracle-es",
+    "prompt": "¿Hay algún cluster sobre fotografía en la red?",
+    "category": "oracle-vs-cluster-disambiguation",
+    "expected_tools": [
+      "discover_clusters"
+    ],
+    "notes": "the two catalogs (MeshKore network vs the open Oracle) must never be confused"
+  },
+  {
+    "id": "oracle-vs-cluster-oracle-not-cluster-es",
+    "prompt": "Búscame un fotógrafo profesional para una boda.",
+    "category": "oracle-vs-cluster-disambiguation",
+    "expected_tools": [
+      "request_service"
+    ],
+    "notes": "the two catalogs (MeshKore network vs the open Oracle) must never be confused"
+  },
+  {
+    "id": "oracle-vs-cluster-cluster-not-oracle-en",
+    "prompt": "Is there a cluster about photography on the network?",
+    "category": "oracle-vs-cluster-disambiguation",
+    "expected_tools": [
+      "discover_clusters"
+    ],
+    "notes": "the two catalogs (MeshKore network vs the open Oracle) must never be confused"
+  },
+  {
+    "id": "oracle-vs-cluster-oracle-not-cluster-en",
+    "prompt": "Find me a professional photographer for a wedding.",
+    "category": "oracle-vs-cluster-disambiguation",
+    "expected_tools": [
+      "request_service"
+    ],
+    "notes": "the two catalogs (MeshKore network vs the open Oracle) must never be confused"
   }
 ]

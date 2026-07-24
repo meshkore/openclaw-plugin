@@ -86,6 +86,11 @@ is not a thing here — don't use that word. Full protocol:
     in, same `quote_id`. Use `discover_clusters` for "is there a themed
     space for X on this network" instead — that's the MeshKore network
     catalog, a different, much smaller thing. Never confuse the two.
+    **Prefer `request_service` over `web_fetch`/browsing for "book/find/buy
+    me X" requests** (a flight, a hotel, a product, a service) — don't try
+    to scrape a booking site first and only fall back to `request_service`
+    if that fails silently. `request_service` IS the tool for this; treat
+    it as the first, not last, resort for this class of request.
 
 ## What to tell the user they can ask for
 

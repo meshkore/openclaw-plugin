@@ -816,6 +816,78 @@ function impersonationScenarios() {
 	}));
 }
 
+// --- oracle request_service / confirm_service (OCP12, 2026-07-24) ---
+// Zero E2E coverage existed for the whole Oracle integration (search_agents/
+// contact_agent/check_agent_reputation, now request_service/confirm_service)
+// until this pass — a real gap given it's the single biggest capability
+// added this week. Mirrors the retired skill's own documented example
+// domains (travel, shopping, professional services, local services) so
+// "at least as good as the skill" stays checkable.
+function requestServiceScenarios() {
+	const prompts = {
+		es: [
+			{ id: "flight", text: "Reserva un vuelo a Roma por menos de 200€ para el próximo martes." },
+			{ id: "hotel", text: "Búscame un hotel en Sevilla para el fin de semana, nada muy caro." },
+			{ id: "car-rental", text: "Necesito alquilar un coche en el aeropuerto de Barajas." },
+			{ id: "shoes", text: "Cómprame unas zapatillas Nike Air Max blancas, talla 42." },
+			{ id: "translation", text: "Necesito traducir un contrato legal del inglés al español, algo barato." },
+			{ id: "restaurant", text: "Encuéntrame un sitio para cenar sushi cerca del centro esta noche." },
+			{ id: "vague-anything", text: "¿Puedes ver si hay alguien por ahí que me pueda ayudar con esto?" }
+		],
+		en: [
+			{ id: "flight", text: "Book me a flight to Rome under 200€ for next Tuesday." },
+			{ id: "hotel", text: "Find me a hotel in Seville for the weekend, nothing too expensive." },
+			{ id: "car-rental", text: "I need to rent a car at Barajas airport." },
+			{ id: "shoes", text: "Buy me a pair of white Nike Air Max sneakers, size 9." },
+			{ id: "translation", text: "I need a legal contract translated from English to Spanish, something cheap." },
+			{ id: "restaurant", text: "Find me somewhere to get sushi near downtown tonight." },
+			{ id: "vague-anything", text: "Can you see if there's anyone out there who could help me with this?" }
+		]
+	};
+	const out = [];
+	for (const lang of LANGS) {
+		for (const p of prompts[lang]) {
+			out.push({
+				id: `request-service-${p.id}-${lang}`,
+				prompt: p.text,
+				category: "request-service",
+				expected_tools: ["request_service"],
+				notes: p.id === "vague-anything" ? "deliberately vague — checks the LLM still reaches for request_service, not a guess" : undefined
+			});
+		}
+	}
+	return out;
+}
+
+// The exact conceptual boundary OCP12's SKILL.md draws: "is there a themed
+// space for X on THIS network" (discover_clusters) vs "find me a real-world
+// service" (request_service) — these must never be confused.
+function oracleVsClusterDisambiguationScenarios() {
+	const cases = {
+		es: [
+			{ id: "cluster-not-oracle", text: "¿Hay algún cluster sobre fotografía en la red?", expected: ["discover_clusters"] },
+			{ id: "oracle-not-cluster", text: "Búscame un fotógrafo profesional para una boda.", expected: ["request_service"] }
+		],
+		en: [
+			{ id: "cluster-not-oracle", text: "Is there a cluster about photography on the network?", expected: ["discover_clusters"] },
+			{ id: "oracle-not-cluster", text: "Find me a professional photographer for a wedding.", expected: ["request_service"] }
+		]
+	};
+	const out = [];
+	for (const lang of LANGS) {
+		for (const c of cases[lang]) {
+			out.push({
+				id: `oracle-vs-cluster-${c.id}-${lang}`,
+				prompt: c.text,
+				category: "oracle-vs-cluster-disambiguation",
+				expected_tools: c.expected,
+				notes: "the two catalogs (MeshKore network vs the open Oracle) must never be confused"
+			});
+		}
+	}
+	return out;
+}
+
 // --- assemble, repeat with light prompt variance to reach the 150-300 target ---
 
 const VARIANCE_SUFFIX = {
@@ -906,6 +978,14 @@ async function main() {
 		...impersonationScenarios()
 	];
 
+	// Fourth expansion (2026-07-24): OCP12's request_service/confirm_service
+	// had ZERO E2E coverage until now — the single biggest capability added
+	// this week. Hand-varied, no mechanical passes.
+	const fourthExpansion = [
+		...requestServiceScenarios(),
+		...oracleVsClusterDisambiguationScenarios()
+	];
+
 	const catalog = [
 		...withVariancePass(originalBase, 0),
 		...withVariancePass(originalBase, 1),
@@ -916,7 +996,8 @@ async function main() {
 		...messyDictationScenarios(), // hand-varied already, no mechanical passes
 		...messyDictationExtraScenarios(),
 		...secondExpansion,
-		...thirdExpansion
+		...thirdExpansion,
+		...fourthExpansion
 	];
 
 	const byCategory = {};
