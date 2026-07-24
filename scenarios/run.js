@@ -1,19 +1,24 @@
 /**
- * run.js — OPQ-4: E2E scenario runner. Drives real `openclaw agent --local`
- * turns against the catalog (OPQ-3) and checks the actual tool-call sequence
- * (read from the plugin's own `[meshkore-tool] <name> args=...` log lines,
- * printed straight to the one-shot `--local` process's stdout — verified
- * during today's live dogfooding, no log-file tailing needed) matches each
- * scenario's expected_tools, as an ORDERED subsequence.
+ * run.js — OPQ-4: E2E scenario runner. Drives real `openclaw agent` turns
+ * (against the REAL persistent gateway, not `--local` — see OCP13, 2026-07-24:
+ * `--local` is a separate embedded runtime that doesn't reproduce a real
+ * gateway's tools.profile/alsoAllow resolution, so it can silently pass
+ * scenarios a real gateway-backed agent would fail) against the catalog
+ * (OPQ-3) and checks the actual tool-call sequence (read from the plugin's
+ * own `[meshkore-tool] <name> args=...` log lines) matches each scenario's
+ * expected_tools, as an ORDERED subsequence.
  *
  * Usage:
- *   node scenarios/run.js            # sample mode: ~25 scenarios, stratified across categories
- *   node scenarios/run.js --full     # full catalog (~198 scenarios) — slow, real $ cost, explicit opt-in
- *   node scenarios/run.js --n=50     # custom sample size
+ *   node scenarios/run.js                    # sample mode: ~25 scenarios, stratified across categories
+ *   node scenarios/run.js --full             # full catalog (~198 scenarios) — slow, real $ cost, explicit opt-in
+ *   node scenarios/run.js --n=50             # custom sample size
+ *   node scenarios/run.js --category=<name>  # only scenarios in one category
  *
- * Requires the OpenClaw runtime at ~/Documents/Prj/asimovia/openclaw/ (see
- * openclaw-plugin-qa.md) with this plugin linked and AIMLAPI configured as
- * the default model.
+ * Requires a RUNNING gateway (`openclaw gateway run`, see
+ * ~/Documents/Prj/asimovia/openclaw/scripts/run-openclaw.sh) with this plugin
+ * linked, `tools.alsoAllow: ["group:plugins"]` set if your profile is
+ * restrictive (see this plugin's README), and AIMLAPI configured as the
+ * default model.
  */
 
 import { readFile } from "node:fs/promises";
@@ -36,7 +41,9 @@ function parseArgs(argv) {
 	const full = argv.includes("--full");
 	const nArg = argv.find((a) => a.startsWith("--n="));
 	const n = nArg ? parseInt(nArg.slice(4), 10) : 25;
-	return { full, n };
+	const categoryArg = argv.find((a) => a.startsWith("--category="));
+	const category = categoryArg ? categoryArg.slice(11) : null;
+	return { full, n, category };
 }
 
 /** Stratified sample: at least one per category, then fill up to `n` round-robin. */
@@ -71,6 +78,44 @@ function sampleStratified(catalog, n) {
 // respect that flag reliably in --local mode.
 const PER_SCENARIO_TIMEOUT_S = 180;
 
+/**
+ * Without `--local`, tool execution happens INSIDE the persistent gateway
+ * process, not the spawned CLI client — verified live 2026-07-24: zero
+ * `[meshkore-tool]` lines ever appear in the client's own stdout, but they
+ * DO appear in the gateway's own daily JSON log
+ * (`/tmp/openclaw/openclaw-<date>.log`). Read that file, windowed to
+ * [startedAt, finishedAt] so results from a concurrent/earlier scenario
+ * don't bleed into this one.
+ */
+async function extractGatewayLogToolCalls(startedAt, finishedAt) {
+	const calls = [];
+	const dates = new Set([startedAt.toISOString().slice(0, 10), finishedAt.toISOString().slice(0, 10)]);
+	for (const date of dates) {
+		const path = `/tmp/openclaw/openclaw-${date}.log`;
+		let text;
+		try {
+			text = await readFile(path, "utf8");
+		} catch {
+			continue;
+		}
+		for (const line of text.split("\n")) {
+			if (!line.trim()) continue;
+			let entry;
+			try {
+				entry = JSON.parse(line);
+			} catch {
+				continue;
+			}
+			const t = entry.time ? new Date(entry.time) : null;
+			if (!t || t < startedAt || t > finishedAt) continue;
+			const msg = entry["0"] || entry.message || "";
+			const m = /\[meshkore-tool\]\s+(\S+)\s+args=/.exec(String(msg));
+			if (m) calls.push(m[1]);
+		}
+	}
+	return calls;
+}
+
 function runOnce(scenario, sessionKey) {
 	return new Promise((resolve) => {
 		const args = [
@@ -81,7 +126,14 @@ function runOnce(scenario, sessionKey) {
 			sessionKey,
 			"--message",
 			scenario.prompt,
-			"--local",
+			// NOT --local (found live 2026-07-24, OCP13): --local is a separate
+			// embedded runtime that does NOT resolve tools.profile/alsoAllow the
+			// same way the real persistent gateway does — a plugin's tools can be
+			// silently invisible to a real gateway-backed agent (behind
+			// tools.profile: "coding" without tools.alsoAllow: ["group:plugins"])
+			// while --local still calls them fine, making --local a false-positive
+			// proxy for exactly the kind of bug this harness exists to catch.
+			// Requires a running `openclaw gateway run` — see README.
 			"--timeout",
 			String(PER_SCENARIO_TIMEOUT_S)
 		];
@@ -92,7 +144,20 @@ function runOnce(scenario, sessionKey) {
 		// scenarios/run.js` processes kept running for 3+ hours after their
 		// parent runs had long since "completed", 0% CPU, never reaped). Kill
 		// the whole group with `process.kill(-pid, ...)` instead.
-		const child = spawn(RUN_SCRIPT, args, { env: process.env, detached: true });
+		// Found live 2026-07-24 (OCP13) — the single biggest bug in this whole
+		// harness: `run-openclaw.sh` does NOT manage its own Node version; it
+		// assumes the calling shell already has a compatible `node` on PATH via
+		// nvm. Spawning it directly (as this file always did) inherits whatever
+		// `node` this very script is running under, which can be — and on this
+		// machine's ambient default IS — an incompatible version (v24.1.0 vs
+		// the required >=24.15.0). The openclaw binary then exits(1) instantly
+		// with a version-mismatch message, and every scenario silently reads as
+        // "wrong tool called" (empty actualTools) instead of "the CLI never
+		// even ran." Wrap in bash with nvm sourced + the right version
+		// selected, passing the real args through argv (not string-interpolated
+		// into the script) so scenario prompts never need shell-escaping.
+		const bashScript = `export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm use 24.18.0 >/dev/null 2>&1; exec "$0" "$@"`;
+		const child = spawn("bash", ["-c", bashScript, RUN_SCRIPT, ...args], { env: process.env, detached: true });
 		let out = "";
 		let settled = false;
 		const killTimer = setTimeout(() => {
@@ -165,12 +230,18 @@ function extractFingerprintEvidence(finalText, expectedTools) {
 	return found;
 }
 
-function extractToolCalls(output, expectedTools) {
+async function extractToolCalls(output, expectedTools, startedAt, finishedAt) {
 	const logged = extractLoggedToolCalls(output);
 	if (logged.length > 0) return { calls: logged, evidence: "log" };
-	// No direct log line at all — likely subagent-delegated. Fall back to
-	// id-fingerprint evidence in the final text, in the ORDER expectedTools
-	// lists them (we can't recover true call order from text alone).
+	// No direct log line in the client's own stdout — expected when NOT
+	// running --local (tool execution happens gateway-side, OCP13) or when
+	// the "coding" profile delegated to a subagent. Check the gateway's own
+	// log file for the same window before falling back to fingerprints.
+	const gatewayLogged = await extractGatewayLogToolCalls(startedAt, finishedAt);
+	if (gatewayLogged.length > 0) return { calls: gatewayLogged, evidence: "gateway-log" };
+	// Still nothing — fall back to id-fingerprint evidence in the final text,
+	// in the ORDER expectedTools lists them (can't recover true call order
+	// from text alone).
 	const finalText = output.split("\n").slice(-40).join("\n");
 	const found = extractFingerprintEvidence(finalText, expectedTools);
 	return { calls: found, evidence: found.length ? "fingerprint" : "none" };
@@ -187,24 +258,31 @@ function matchesSubsequence(expected, actual) {
 
 async function runScenario(scenario, index) {
 	const sessionKey = `qa-run-${scenario.id}-${index}`;
+	const startedAt = new Date(Date.now() - 2000); // 2s slack for clock/log-flush skew
 	let output = await runOnce(scenario, sessionKey);
 	let retried = false;
 	if (IDLE_TIMEOUT_MARKERS.some((marker) => output.includes(marker))) {
 		retried = true;
 		output = await runOnce(scenario, `${sessionKey}-retry`);
 	}
-	const { calls: actualTools, evidence } = extractToolCalls(output, scenario.expected_tools);
+	const finishedAt = new Date(Date.now() + 2000);
+	const { calls: actualTools, evidence } = await extractToolCalls(output, scenario.expected_tools, startedAt, finishedAt);
 	const pass = matchesSubsequence(scenario.expected_tools, actualTools);
 	const providerFlake = !pass && IDLE_TIMEOUT_MARKERS.some((marker) => output.includes(marker));
 	return { scenario, pass, actualTools, evidence, retried, providerFlake };
 }
 
 async function main() {
-	const { full, n } = parseArgs(process.argv.slice(2));
-	const catalog = JSON.parse(await readFile(join(HERE, "catalog.json"), "utf8"));
-	const selected = full ? catalog : sampleStratified(catalog, n);
+	const { full, n, category } = parseArgs(process.argv.slice(2));
+	const fullCatalog = JSON.parse(await readFile(join(HERE, "catalog.json"), "utf8"));
+	const catalog = category ? fullCatalog.filter((s) => s.category === category) : fullCatalog;
+	const selected = full || category ? catalog : sampleStratified(catalog, n);
 
-	console.log(`Running ${selected.length}/${catalog.length} scenarios (${full ? "FULL catalog" : `sample, n=${n}`})...\n`);
+	console.log(
+		`Running ${selected.length}/${fullCatalog.length} scenarios (${
+			category ? `category=${category}` : full ? "FULL catalog" : `sample, n=${n}`
+		})...\n`
+	);
 
 	const results = [];
 	for (let i = 0; i < selected.length; i++) {
