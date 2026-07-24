@@ -131,7 +131,7 @@
       "package": {
         "path": "package.json",
         "name": "meshkore-plugin",
-        "version": "0.3.0",
+        "version": "0.3.1",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -176,7 +176,7 @@
         {
           "path": "package.json",
           "name": "meshkore-plugin",
-          "version": "0.3.0",
+          "version": "0.3.1",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -296,7 +296,7 @@
       "evidence": [
         "package.json",
         "meshkore-plugin",
-        "version:0.3.0"
+        "version:0.3.1"
       ]
     },
     {

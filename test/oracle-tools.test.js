@@ -24,7 +24,7 @@ test("request_service — never exposes agent_id/score, returns a plain quote", 
 		if (url === `${ORACLE_URL}/v1/search`) {
 			return jsonResponse(200, {
 				agents: [
-					{ agent_id: "roomrover", description: "Hotel booking", oracle_score: 0.93, pricing: { amount: 120, currency: "USD" } }
+					{ agent_id: "roomrover", description: "Hotel booking", oracle_score: 0.93, online: true, pricing: { amount: 120, currency: "USD" } }
 				]
 			});
 		}
@@ -76,6 +76,30 @@ test("request_service — no candidates found returns found:false", async () => 
 		const request = tools.find((t) => t.name === "request_service");
 		const result = await request.execute({ request: "comprar zapatos" });
 		assert.equal(result.found, false);
+	} finally {
+		restore();
+	}
+});
+
+test("request_service — an offline result is never high-confidence, even with a high raw score", async () => {
+	// Verified live 2026-07-24: the Oracle's audience:personal filter falls
+	// back to its full (mostly scraped, offline) pool when nothing genuinely
+	// operational matches — that fallback is correct, but this tool must not
+	// then call a high-scoring offline scraped repo "high confidence."
+	const restore = mockFetch(async (url) => {
+		if (url === `${ORACLE_URL}/v1/search`) {
+			return jsonResponse(200, {
+				agents: [{ agent_id: "offline-repo", description: "Some repo", oracle_score: 0.95, online: false }]
+			});
+		}
+		if (String(url).startsWith(`${ORACLE_URL}/v1/reputation/`)) return jsonResponse(200, { score: 0, message_through_count: 0 });
+		throw new Error(`unexpected fetch: ${url}`);
+	});
+	try {
+		const tools = createOracleTools(getState);
+		const request = tools.find((t) => t.name === "request_service");
+		const result = await request.execute({ request: "anything" });
+		assert.equal(result.confidence, "low");
 	} finally {
 		restore();
 	}

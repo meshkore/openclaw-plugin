@@ -129,11 +129,20 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 				const description =
 					winner.agent.description?.trim() ||
 					(winner.agent.capabilities?.length ? winner.agent.capabilities.join(", ") : "a matching provider");
+				// Verified live 2026-07-24: the Oracle's `audience: "personal"` filter
+				// (oracle-personal-audience) falls back to its full, mostly-scraped
+				// pool when NOTHING operational matches (e.g. "traductor legal
+				// barato" → an offline academic RAG paper) — that fallback is
+				// correct (never silently return zero), but this tool must not then
+				// call it "high confidence" just because its raw score is high. A
+				// result that isn't actually online is never high-confidence here,
+				// regardless of score.
+				const isOperational = winner.agent.online === true;
 				return {
 					found: true,
 					description,
 					pricing: winner.agent.pricing ?? winner.agent.agent_card?.pricing ?? null,
-					confidence: winner.score >= LOW_CONFIDENCE_SCORE ? "high" : "low",
+					confidence: isOperational && winner.score >= LOW_CONFIDENCE_SCORE ? "high" : "low",
 					quote_id: encodeQuoteId(winner.agent.agent_id, request)
 				};
 			}
