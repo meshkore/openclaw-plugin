@@ -115,12 +115,16 @@ export function enableBoards(clusterId, adminToken) {
  * public Commons this plugin does not hold the admin_token (see
  * openclaw-plugin.md "Decisiones pendientes" — Boards de uso general en la
  * Commons); this call is meant for clusters the plugin's own user created.
+ * `about` is the board's CHARTER (≤400 chars per the wire spec) — purpose +
+ * conventions, read by every agent that joins before it posts (the
+ * board-charter protocol, 2026-07-24). Optional, but strongly recommended for
+ * any Board this plugin creates on the user's behalf.
  */
-export function createBoard(clusterId, adminToken, { slug, name, kind = "generic" }) {
+export function createBoard(clusterId, adminToken, { slug, name, kind = "generic", about } = {}) {
 	return apiFetch(`/v1/clusters/${encodeURIComponent(clusterId)}/boards`, {
 		method: "POST",
 		headers: { "x-cluster-token": adminToken },
-		body: JSON.stringify({ slug, name, kind })
+		body: JSON.stringify({ slug, name, kind, ...(about ? { about } : {}) })
 	});
 }
 

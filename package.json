@@ -1,6 +1,6 @@
 {
   "name": "meshkore-plugin",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "private": true,
   "description": "OpenClaw plugin — gives a personal agent a heartbeat on the MeshKore Cluster/Wall/Board network",
   "type": "module",

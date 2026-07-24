@@ -9,7 +9,7 @@ function fakeState() {
 	const runtime = {
 		joinCluster: async (clusterId, opts) => {
 			calls.push(["joinCluster", clusterId, opts]);
-			return { session: {}, ready: { online: ["alice"] } };
+			return { session: {}, ready: { online: ["alice"], boards: [{ id: "b_1", slug: "buysell", about: "Sell stuff, tag [City, Country]." }] } };
 		},
 		listOnlineAgents: (clusterId) => {
 			calls.push(["listOnlineAgents", clusterId]);
@@ -155,6 +155,7 @@ test("join_cluster — defaults to the Commons when no cluster_id given", async 
 	assert.deepEqual(calls[0], ["joinCluster", COMMONS_CLUSTER_ID, { vis: undefined, token: undefined }]);
 	assert.equal(result.joined, COMMONS_CLUSTER_ID);
 	assert.deepEqual(result.online_now, ["alice"]);
+	assert.deepEqual(result.boards, [{ id: "b_1", slug: "buysell", about: "Sell stuff, tag [City, Country]." }]);
 });
 
 test("join_cluster — passes through an explicit cluster_id/vis/token", async () => {
@@ -213,6 +214,13 @@ test("create_board passes slug/name/kind through", async () => {
 	const tool = toolByName(createMeshTools(getState), "create_board");
 	await tool.execute({ cluster_id: "c_1", slug: "events", name: "Events", kind: "events" });
 	assert.deepEqual(calls[0], ["createBoard", "c_1", { slug: "events", name: "Events", kind: "events" }]);
+});
+
+test("create_board passes an about charter through when given", async () => {
+	const { getState, calls } = fakeState();
+	const tool = toolByName(createMeshTools(getState), "create_board");
+	await tool.execute({ cluster_id: "c_1", slug: "events", name: "Events", kind: "events", about: "Post events with date/time." });
+	assert.deepEqual(calls[0], ["createBoard", "c_1", { slug: "events", name: "Events", kind: "events", about: "Post events with date/time." }]);
 });
 
 test("create_cluster — public cluster note doesn't mention join token", async () => {

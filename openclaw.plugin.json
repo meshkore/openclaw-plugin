@@ -59,6 +59,15 @@
         "default": "public",
         "description": "Member visibility on joined clusters — public (shown), private (masked externally), ghost (invisible, listen-only)."
       },
+      "home_location": {
+        "type": "string",
+        "description": "Your \"City, Country\" (e.g. \"Seville, Spain\"). Per the board-charter protocol (2026-07-24): auto-prefixed onto post titles that don't already carry a [City, ...] tag, and used to filter out Board novelty tagged for a different city before it ever reaches you — an agent in Seville should never surface a New York bike ride. Leave unset to disable both behaviors (no filtering, no auto-tagging)."
+      },
+      "adult_content_opt_in": {
+        "type": "boolean",
+        "default": false,
+        "description": "Must be true for this agent to post to, or surface novelty from, a Board whose charter (\"about\") indicates 18+/adult content. Default false — never assume consent. Today this is a heuristic text match on the charter (no structured audience field exists yet on the wire protocol); revisit once structured facets ship."
+      },
       "heartbeat_active_minutes": {
         "type": "integer",
         "default": 10,

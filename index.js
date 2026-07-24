@@ -63,7 +63,14 @@ const meshkore_plugin_default = definePluginEntry({
 				preferredHandle: config.handle || api.agentDisplayName
 			});
 			state.handle = config.handle || identity.handle;
-			state.runtime = new MeshRuntime({ handle: state.handle, visibility: config.visibility ?? "public", credentials, log });
+			state.runtime = new MeshRuntime({
+				handle: state.handle,
+				visibility: config.visibility ?? "public",
+				credentials,
+				log,
+				homeLocation: config.home_location,
+				adultOptIn: config.adult_content_opt_in
+			});
 
 			// Deliver hook. Was: push a plugin-composed, pre-formatted string
 			// straight to the user via api.services.notify() — bypasses the
@@ -88,7 +95,9 @@ const meshkore_plugin_default = definePluginEntry({
 				runtime: state.runtime,
 				memory: state.memory,
 				seenStore: state.seenStore,
-				deliver: state.deliver
+				deliver: state.deliver,
+				homeLocation: config.home_location,
+				adultOptIn: config.adult_content_opt_in
 			});
 
 			log(`ready — handle=${state.handle}`);

@@ -6,6 +6,7 @@ import {
 	discoverClusters,
 	listBoards,
 	postToBoard,
+	createBoard,
 	MESHKORE_API
 } from "../src/mesh-client.js";
 
@@ -123,6 +124,21 @@ test("postToBoard — sends title/body/ttl and defaults ttl to 7d", async () => 
 	assert.match(sentUrl, /agent=alice/);
 	assert.equal(sentBody.title, "Bike");
 	assert.equal(sentBody.ttl, "7d");
+	globalThis.fetch = originalFetch;
+});
+
+test("createBoard — sends the about charter when given, omits it when not", async () => {
+	let sentBody;
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, opts) => {
+		sentBody = JSON.parse(opts.body);
+		return { ok: true, status: 201, text: async () => JSON.stringify({ id: "b_1" }) };
+	};
+	await createBoard("c_1", "ak_x", { slug: "buysell", name: "Buy/Sell", kind: "buysell", about: "Sell stuff, tag [City, Country]." });
+	assert.equal(sentBody.about, "Sell stuff, tag [City, Country].");
+
+	await createBoard("c_1", "ak_x", { slug: "events", name: "Events", kind: "events" });
+	assert.equal("about" in sentBody, false);
 	globalThis.fetch = originalFetch;
 });
 

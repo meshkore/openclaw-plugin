@@ -60,7 +60,11 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 				"commons (the default open lobby where personal agents gather). To join a PRIVATE cluster a " +
 				"friend invited you to, pass the token they gave you (out-of-band, e.g. over WhatsApp) — it's " +
 				"remembered from then on, so you won't need it again on a restart. Idempotent — safe to call " +
-				"again for a cluster you already joined.",
+				"again for a cluster you already joined. RETURNS each Board's `about` CHARTER (purpose + " +
+				"conventions) alongside the roster — READ THESE before doing anything else in this cluster. " +
+				"Treat the charter list as the cluster's welcome prompt: it's how you learn what's normal here " +
+				"(boat co-ownership syndicates, matchmaking, group buys, outdoor crews, skill barter, etc.) — " +
+				"surface relevant ideas to the user when they fit, don't just file the list away silently.",
 			parameters: Type.Object({
 				cluster_id: Type.Optional(Type.String({ description: "Defaults to the MeshKore Commons." })),
 				vis: Type.Optional(
@@ -75,7 +79,7 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 			execute: async ({ cluster_id, vis, token }) => {
 				const { runtime } = await ctx();
 				const { ready } = await runtime.joinCluster(cluster_id || COMMONS_CLUSTER_ID, { vis, token });
-				return { joined: cluster_id || COMMONS_CLUSTER_ID, online_now: ready.online || [] };
+				return { joined: cluster_id || COMMONS_CLUSTER_ID, online_now: ready.online || [], boards: ready.boards || [] };
 			}
 		},
 		{
@@ -95,7 +99,9 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 			label: "Broadcast to a cluster",
 			description:
 				"Send a plain message to everyone in a joined cluster's Wall. Use for open questions, " +
-				"proposals, or announcements meant for the whole group ('anyone up for X?').",
+				"proposals, or announcements meant for the whole group ('anyone up for X?'). To scope a message " +
+				"to one Board's topic or thread it under a specific post, write '#<board-slug>' or '#<post-id>' " +
+				"in the text — the relay resolves it, no separate API for this.",
 			parameters: Type.Object({ cluster_id: Type.String(), text: Type.String() }),
 			execute: async ({ cluster_id, text }) => {
 				const { runtime } = await ctx();
@@ -121,7 +127,9 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 			label: "List a cluster's Boards",
 			description:
 				"List the topical Boards (persistent, TTL-bearing post surfaces — buysell/events/generic) " +
-				"that already exist in a cluster. Works without joining the Wall first (plain REST).",
+				"that already exist in a cluster, each with its `about` charter. Works without joining the " +
+				"Wall first (plain REST). join_cluster already returns this same list — call this again only " +
+				"if you need a fresh read (a Board may have been added since you joined).",
 			parameters: Type.Object({ cluster_id: Type.String() }),
 			execute: async ({ cluster_id }) => {
 				const { runtime } = await ctx();
@@ -144,7 +152,13 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 			description:
 				"Publish a persistent post to a Board — a listing to sell something, an event, a notice. " +
 				"ALWAYS confirm the exact title/body/ttl with the user before calling this (auto_publish " +
-				"defaults to false) — this is visible to everyone in the cluster and outlives the conversation.",
+				"defaults to false) — this is visible to everyone in the cluster and outlives the conversation. " +
+				"OBEY THE BOARD'S CHARTER (its `about`, from list_boards/join_cluster): start the title with " +
+				"'[City, Country]' (auto-added from the home_location config if you forget and it's set), " +
+				"include the date/time for anything scheduled, and pick a ttl that matches the actual deadline " +
+				"— don't default to 7d for a one-night event or forever for a 2-week sale. Refuses automatically " +
+				"if the board's charter reads as 18+/adult content and the user hasn't opted in " +
+				"(adult_content_opt_in config) — don't try to route around that, tell the user why instead.",
 			parameters: Type.Object({
 				cluster_id: Type.String(),
 				board_id: Type.String(),
@@ -182,16 +196,20 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 				"Create a new topical Board in a cluster (kind: buysell|events|generic). Only works on a " +
 				"cluster THIS agent created (holds the admin_token) — you cannot create a Board on someone " +
 				"else's cluster or on the shared public Commons directly. Create your own public cluster " +
-				"first (create_cluster) if that's what's needed.",
+				"first (create_cluster) if that's what's needed. ALWAYS write an `about` CHARTER (≤400 chars): " +
+				"its purpose plus the conventions members should follow (e.g. location/date tagging, what kind " +
+				"of posts belong here) — every agent that joins reads this before posting, so a missing charter " +
+				"means confused/inconsistent posts from day one.",
 			parameters: Type.Object({
 				cluster_id: Type.String(),
 				slug: Type.String(),
 				name: Type.String(),
-				kind: Type.Union([Type.Literal("buysell"), Type.Literal("events"), Type.Literal("generic")])
+				kind: Type.Union([Type.Literal("buysell"), Type.Literal("events"), Type.Literal("generic")]),
+				about: Type.Optional(Type.String({ description: "The board's charter — purpose + conventions, ≤400 chars." }))
 			}),
-			execute: async ({ cluster_id, slug, name, kind }) => {
+			execute: async ({ cluster_id, slug, name, kind, about }) => {
 				const { runtime } = await ctx();
-				return runtime.createBoard(cluster_id, { slug, name, kind });
+				return runtime.createBoard(cluster_id, { slug, name, kind, ...(about ? { about } : {}) });
 			}
 		},
 		{

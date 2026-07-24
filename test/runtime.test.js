@@ -9,9 +9,9 @@ function tmpFile() {
 	return join(tmpdir(), `meshkore-runtime-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
 }
 
-async function makeRuntime() {
+async function makeRuntime(opts = {}) {
 	const credentials = await new ClusterCredentials(tmpFile()).load();
-	return new MeshRuntime({ handle: "openclaw-test", credentials });
+	return new MeshRuntime({ handle: "openclaw-test", credentials, ...opts });
 }
 
 function fakeSession() {
@@ -254,6 +254,133 @@ test("postToBoard — a stale duplicate (older than the dedupe window) is NOT de
 		}
 	);
 	assert.equal(postCalls, 1, "a duplicate outside the dedupe window should post normally");
+});
+
+// --- board-charter protocol (2026-07-24): location tagging + audience gating ---
+
+test("postToBoard — auto-prefixes [City, Country] when homeLocation is configured and the title isn't already tagged", async () => {
+	const runtime = await makeRuntime({ homeLocation: "Seville, Spain" });
+	let postedBody;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postedBody = JSON.parse(opts.body);
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "Selling my bike", body: "150€" });
+		}
+	);
+	assert.equal(postedBody.title, "[Seville, Spain] Selling my bike");
+});
+
+test("postToBoard — respects a title that's already tagged, never double-prefixes", async () => {
+	const runtime = await makeRuntime({ homeLocation: "Seville, Spain" });
+	let postedBody;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postedBody = JSON.parse(opts.body);
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "[Madrid, Spain] Selling my bike", body: "150€" });
+		}
+	);
+	assert.equal(postedBody.title, "[Madrid, Spain] Selling my bike");
+});
+
+test("postToBoard — no homeLocation configured leaves the title untouched", async () => {
+	const runtime = await makeRuntime();
+	let postedBody;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postedBody = JSON.parse(opts.body);
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "Selling my bike", body: "150€" });
+		}
+	);
+	assert.equal(postedBody.title, "Selling my bike");
+});
+
+test("postToBoard — refuses a board whose charter reads 18+ without adult_content_opt_in", async () => {
+	const runtime = await makeRuntime();
+	await withMockFetch(
+		async () => ({
+			ok: true,
+			status: 200,
+			text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "adults-only", about: "18+ only, no exceptions." }] })
+		}),
+		async () => {
+			await assert.rejects(
+				() => runtime.postToBoard("c_1", "adults-only", { title: "Hi", body: "..." }),
+				/adult\/18\+ content/
+			);
+		}
+	);
+});
+
+test("postToBoard — allows the same board when adultOptIn is true", async () => {
+	const runtime = await makeRuntime({ adultOptIn: true });
+	let postCalled = false;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postCalled = true;
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return {
+				ok: true,
+				status: 200,
+				text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "adults-only", about: "18+ only, no exceptions." }] })
+			};
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "adults-only", { title: "Hi", body: "..." });
+		}
+	);
+	assert.equal(postCalled, true);
+});
+
+test("createBoard passes an about charter through to mesh.createBoard", async () => {
+	const runtime = await makeRuntime();
+	await runtime.credentials.remember("c_mine", { adminToken: "ak_x" });
+	let sentBody;
+	await withMockFetch(
+		async (url, opts) => {
+			sentBody = opts?.body ? JSON.parse(opts.body) : sentBody;
+			return { ok: true, status: 201, text: async () => JSON.stringify({ id: "b_new" }) };
+		},
+		async () => {
+			await runtime.createBoard("c_mine", { slug: "buysell", name: "Buy/Sell", kind: "buysell", about: "Tag [City, Country]." });
+		}
+	);
+	assert.equal(sentBody.about, "Tag [City, Country].");
+});
+
+test("_safeListBoardsWithCharters — returns the board list, and [] (not a throw) on a fetch error", async () => {
+	const runtime = await makeRuntime();
+	await withMockFetch(
+		async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", about: "charter text" }] }) }),
+		async () => {
+			assert.deepEqual(await runtime._safeListBoardsWithCharters("c_1"), [{ id: "b_1", about: "charter text" }]);
+		}
+	);
+	await withMockFetch(
+		async () => ({ ok: false, status: 500, text: async () => "" }),
+		async () => {
+			assert.deepEqual(await runtime._safeListBoardsWithCharters("c_1"), []);
+		}
+	);
 });
 
 test("createCluster persists returned credentials for later admin actions", async () => {

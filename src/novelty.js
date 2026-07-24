@@ -73,12 +73,39 @@ export function wireWallDelivery(session, { deliver, selfHandle }) {
 	});
 }
 
+/** Leading "[City, ...]" (or "[City]") tag on a post title. Null if the title isn't tagged. */
+export function parseLocationTag(title) {
+	const m = /^\s*\[([^,\]]+)/.exec(title || "");
+	return m ? m[1].trim() : null;
+}
+
+/**
+ * Board-charter protocol (2026-07-24): "location match comes FIRST, then
+ * dates, then taste" — an agent in Seville must never surface a New York
+ * bike ride. Permissive by design: no homeLocation configured, or the post
+ * isn't location-tagged at all (older posts, or an agent not yet following
+ * the convention), both pass through un-filtered — this only blocks a CLEAR
+ * mismatch between two tagged cities, never a maybe.
+ */
+export function locationMatches(postTitle, homeLocation) {
+	if (!homeLocation) return true;
+	const postCity = parseLocationTag(postTitle);
+	if (!postCity) return true;
+	const homeCity = homeLocation.split(",")[0].trim().toLowerCase();
+	return postCity.toLowerCase() === homeCity;
+}
+
+/** Same heuristic as MeshRuntime.ADULT_CHARTER_RE — kept independent since novelty.js has no OpenClaw/runtime dependency. */
+export const ADULT_CHARTER_RE = /\b18\s*\+|\badults?\b|\bnsfw\b/i;
+
 /**
  * One heartbeat tick's worth of Board polling — call as the heartbeat's
  * `onTick`. Returns true if anything new was found (feeds the idle-cadence
- * detector in heartbeat.js).
+ * detector in heartbeat.js). `homeLocation`/`adultOptIn` gate delivery per the
+ * board-charter protocol — filtered posts are still marked seen (so a
+ * mismatch doesn't get re-evaluated forever), they just never reach the user.
  */
-export function createBoardNoveltyTick({ runtime, memory, seenStore, deliver }) {
+export function createBoardNoveltyTick({ runtime, memory, seenStore, deliver, homeLocation, adultOptIn }) {
 	return async function tick() {
 		const watches = memory.activeWatches();
 		let hadNovelty = false;
@@ -89,11 +116,15 @@ export function createBoardNoveltyTick({ runtime, memory, seenStore, deliver }) 
 			} catch (err) {
 				continue; // board or cluster gone — skip silently, don't crash the tick
 			}
+			const boardMeta = boardData.board || boardData;
+			const boardIsAdultGated = !adultOptIn && ADULT_CHARTER_RE.test(boardMeta?.about || "");
 			const posts = boardData.posts || boardData.board?.posts || [];
 			for (const post of posts) {
 				if (!seenStore.isNew(cluster_id, board, post.id)) continue;
-				hadNovelty = true;
 				await seenStore.markSeen(cluster_id, board, post.id);
+				if (boardIsAdultGated) continue; // never surface adult-charter content without opt-in
+				if (!locationMatches(post.title, homeLocation)) continue; // wrong city — never propose it
+				hadNovelty = true;
 				await memory.touchLastMatch(interest_id);
 				deliver(
 					`[MeshKore] New post in #${board} (cluster ${cluster_id}) matching your interest "${interest_id}": ` +

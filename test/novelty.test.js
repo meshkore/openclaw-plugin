@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SeenPostsStore, wireWallDelivery, createBoardNoveltyTick } from "../src/novelty.js";
+import { SeenPostsStore, wireWallDelivery, createBoardNoveltyTick, parseLocationTag, locationMatches } from "../src/novelty.js";
 
 function tmpFile() {
 	return join(tmpdir(), `meshkore-novelty-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
@@ -133,4 +133,67 @@ test("createBoardNoveltyTick — no watches means no novelty, no crash", async (
 	const memory = fakeMemory([]);
 	const tick = createBoardNoveltyTick({ runtime, memory, seenStore, deliver: () => {} });
 	assert.equal(await tick(), false);
+});
+
+// --- board-charter protocol (2026-07-24): location + audience filtering ---
+
+test("parseLocationTag — extracts the city from a leading [City, ...] tag", () => {
+	assert.equal(parseLocationTag("[Seville, Spain] Selling my bike"), "Seville");
+	assert.equal(parseLocationTag("[Seville] Selling my bike"), "Seville");
+	assert.equal(parseLocationTag("Selling my bike"), null);
+});
+
+test("locationMatches — permissive when homeLocation or the tag is absent, strict on a real mismatch", () => {
+	assert.equal(locationMatches("[Seville, Spain] Bike", null), true);
+	assert.equal(locationMatches("Bike, no tag", "Seville, Spain"), true);
+	assert.equal(locationMatches("[Seville, Spain] Bike", "Seville, Spain"), true);
+	assert.equal(locationMatches("[seville] Bike", "Seville, Spain"), true); // case-insensitive
+	assert.equal(locationMatches("[New York, USA] Bike", "Seville, Spain"), false);
+});
+
+test("createBoardNoveltyTick — a location-mismatched post is marked seen but never delivered", async () => {
+	const seenStore = await new SeenPostsStore(tmpFile()).load();
+	const delivered = [];
+	const runtime = {
+		readBoard: async () => ({ posts: [{ id: "p_ny", title: "[New York, USA] Civic 2018", body: "9000$" }] })
+	};
+	const memory = fakeMemory([{ cluster_id: "c_cars", board: "buysell", interest_id: "int_1" }]);
+	memory.touchLastMatch = async () => {};
+	const tick = createBoardNoveltyTick({ runtime, memory, seenStore, deliver: (t) => delivered.push(t), homeLocation: "Seville, Spain" });
+
+	const had = await tick();
+	assert.equal(had, false);
+	assert.equal(delivered.length, 0);
+	assert.equal(seenStore.isNew("c_cars", "buysell", "p_ny"), false, "still marked seen so it isn't re-evaluated forever");
+});
+
+test("createBoardNoveltyTick — a matching-location post still delivers normally", async () => {
+	const seenStore = await new SeenPostsStore(tmpFile()).load();
+	const delivered = [];
+	const runtime = {
+		readBoard: async () => ({ posts: [{ id: "p_sev", title: "[Seville, Spain] Civic 2018", body: "9000€" }] })
+	};
+	const memory = fakeMemory([{ cluster_id: "c_cars", board: "buysell", interest_id: "int_1" }]);
+	memory.touchLastMatch = async () => {};
+	const tick = createBoardNoveltyTick({ runtime, memory, seenStore, deliver: (t) => delivered.push(t), homeLocation: "Seville, Spain" });
+
+	assert.equal(await tick(), true);
+	assert.equal(delivered.length, 1);
+});
+
+test("createBoardNoveltyTick — an adult-charter board never delivers without adultOptIn, even a matching post", async () => {
+	const seenStore = await new SeenPostsStore(tmpFile()).load();
+	const delivered = [];
+	const runtime = {
+		readBoard: async () => ({
+			board: { about: "18+ only, no exceptions." },
+			posts: [{ id: "p_1", title: "Meetup", body: "..." }]
+		})
+	};
+	const memory = fakeMemory([{ cluster_id: "c_x", board: "adults-only", interest_id: "int_1" }]);
+	memory.touchLastMatch = async () => {};
+	const tick = createBoardNoveltyTick({ runtime, memory, seenStore, deliver: (t) => delivered.push(t) });
+
+	assert.equal(await tick(), false);
+	assert.equal(delivered.length, 0);
 });

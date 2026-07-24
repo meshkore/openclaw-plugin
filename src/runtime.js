@@ -13,13 +13,16 @@ import * as mesh from "./mesh-client.js";
 
 export class MeshRuntime {
 	/**
-	 * @param {{handle: string, visibility?: string, credentials: import("./credentials.js").ClusterCredentials, log?: (msg: string) => void}} opts
+	 * @param {{handle: string, visibility?: string, credentials: import("./credentials.js").ClusterCredentials, log?: (msg: string) => void, homeLocation?: string, adultOptIn?: boolean}} opts
 	 */
-	constructor({ handle, visibility = "public", credentials, log = () => {} } = {}) {
+	constructor({ handle, visibility = "public", credentials, log = () => {}, homeLocation, adultOptIn = false } = {}) {
 		this.handle = handle;
 		this.visibility = visibility;
 		this.credentials = credentials;
 		this.log = log;
+		/** "City, Country" — see the board-charter protocol (2026-07-24). Unset disables both auto-tagging and location filtering. */
+		this.homeLocation = homeLocation || null;
+		this.adultOptIn = Boolean(adultOptIn);
 		/** @type {Map<string, import("./mesh-client.js").MeshClusterSession>} */
 		this.sessions = new Map();
 		this._boardsEnabled = new Set();
@@ -31,6 +34,12 @@ export class MeshRuntime {
 	 * pass `token` explicitly the first time (a friend shared it out-of-band)
 	 * — it's remembered from then on, so a restart rejoins automatically
 	 * without asking the user again.
+	 *
+	 * Board-charter protocol (2026-07-24): a join ALSO fetches the cluster's
+	 * Boards right away and attaches them (each with its `about` charter) to
+	 * the returned `ready` object — "treat the charter list as the cluster's
+	 * welcome prompt." This makes the charter-first rule structural rather
+	 * than something the LLM has to remember to do as a second call.
 	 */
 	async joinCluster(clusterId = mesh.COMMONS_CLUSTER_ID, { vis = this.visibility, token } = {}) {
 		const existing = this.sessions.get(clusterId);
@@ -38,13 +47,29 @@ export class MeshRuntime {
 		const joinToken = token || this.credentials.joinToken(clusterId);
 		if (token) await this.credentials.remember(clusterId, { token });
 		const session = new mesh.MeshClusterSession(clusterId, { agent: this.handle, vis, token: joinToken });
-		const ready = new Promise((resolve) => {
+		const readyFrame = new Promise((resolve) => {
 			session.addEventListener("ready", (e) => resolve(e.detail), { once: true });
 		});
 		session.connect();
 		this.sessions.set(clusterId, session);
 		this.log(`joined cluster ${clusterId} as ${this.handle} (${vis}${joinToken ? ", private" : ""})`);
-		return { session, ready: await ready };
+		const frame = await readyFrame;
+		const boards = await this._safeListBoardsWithCharters(clusterId);
+		return { session, ready: { ...frame, boards } };
+	}
+
+	/**
+	 * Boards + their charters, fetched right after joining. Never throws — a
+	 * cluster with Boards disabled, or a transient fetch error, just means an
+	 * empty list, not a broken join.
+	 */
+	async _safeListBoardsWithCharters(clusterId) {
+		try {
+			const { boards } = await mesh.listBoards(clusterId);
+			return boards || [];
+		} catch {
+			return [];
+		}
 	}
 
 	leaveCluster(clusterId) {
@@ -78,6 +103,12 @@ export class MeshRuntime {
 		return mesh.listBoards(clusterId);
 	}
 
+	/** Board metadata (incl. its `about` charter) by slug or opaque id, or null if not found. */
+	async _findBoard(clusterId, slugOrId) {
+		const { boards } = await mesh.listBoards(clusterId);
+		return boards?.find((b) => b.slug === slugOrId || b.id === slugOrId) || null;
+	}
+
 	/**
 	 * The REST path wants the board's opaque `id` (`b_…`), not its human `slug`
 	 * — verified live 2026-07-22 (a slug in the path 404s: `board_not_found`).
@@ -86,10 +117,31 @@ export class MeshRuntime {
 	 */
 	async _resolveBoardId(clusterId, slugOrId) {
 		if (slugOrId.startsWith("b_")) return slugOrId;
-		const { boards } = await mesh.listBoards(clusterId);
-		const match = boards?.find((b) => b.slug === slugOrId || b.id === slugOrId);
+		const match = await this._findBoard(clusterId, slugOrId);
 		if (!match) throw new Error(`no board "${slugOrId}" found in cluster ${clusterId}`);
 		return match.id;
+	}
+
+	/** Leading "[City, ...]" (or "[City]") tag, case-insensitive-safe for comparison. Null if absent. */
+	static LOCATION_TAG_RE = /^\s*\[([^,\]]+)/;
+	/** Heuristic only — no structured audience field exists on the wire protocol yet (facets are "coming"). */
+	static ADULT_CHARTER_RE = /\b18\s*\+|\badults?\b|\bnsfw\b/i;
+
+	/** Auto-prefixes "[City, Country]" onto a post title that isn't already tagged, per the board-charter protocol. A no-op without a configured homeLocation, and never overrides a tag the caller already set. */
+	_withLocationTag(title) {
+		if (!this.homeLocation || MeshRuntime.LOCATION_TAG_RE.test(title || "")) return title;
+		return `[${this.homeLocation}] ${title}`;
+	}
+
+	/** Refuses to post to a Board whose charter reads as 18+/adult unless adultOptIn is set. */
+	_assertAudienceAllowed(board) {
+		if (!board?.about || this.adultOptIn) return;
+		if (MeshRuntime.ADULT_CHARTER_RE.test(board.about)) {
+			throw new Error(
+				`board "${board.slug || board.id}" charter indicates adult/18+ content — ` +
+					`adult_content_opt_in is false, so this agent won't post there. Ask the user to opt in first if this is wanted.`
+			);
+		}
 	}
 
 	async readBoard(clusterId, boardIdOrSlug) {
@@ -122,10 +174,13 @@ export class MeshRuntime {
 	 * within the last `DEDUPE_WINDOW_MS`.
 	 */
 	async postToBoard(clusterId, boardIdOrSlug, { title, body, ttl }) {
-		const boardId = await this._resolveBoardId(clusterId, boardIdOrSlug);
-		const existing = await this._findRecentDuplicatePost(clusterId, boardId, { title, body });
+		const board = await this._findBoard(clusterId, boardIdOrSlug);
+		const boardId = board?.id || boardIdOrSlug;
+		this._assertAudienceAllowed(board);
+		const finalTitle = this._withLocationTag(title);
+		const existing = await this._findRecentDuplicatePost(clusterId, boardId, { title: finalTitle, body });
 		if (existing) return { ...existing, deduped: true };
-		return mesh.postToBoard(clusterId, boardId, this.handle, { title, body, ttl });
+		return mesh.postToBoard(clusterId, boardId, this.handle, { title: finalTitle, body, ttl });
 	}
 
 	static DEDUPE_WINDOW_MS = 5 * 60 * 1000;
@@ -156,7 +211,7 @@ export class MeshRuntime {
 	 * create_cluster) — see openclaw-plugin.md's open decision about Boards on
 	 * the shared public Commons.
 	 */
-	async createBoard(clusterId, { slug, name, kind }) {
+	async createBoard(clusterId, { slug, name, kind, about }) {
 		const adminToken = this.credentials.adminToken(clusterId);
 		if (!adminToken) {
 			throw new Error(
@@ -169,7 +224,7 @@ export class MeshRuntime {
 			await mesh.enableBoards(clusterId, adminToken); // PATCH boards_enabled:true — required once per cluster (verified live: 409 boards_disabled otherwise)
 			this._boardsEnabled.add(clusterId);
 		}
-		return mesh.createBoard(clusterId, adminToken, { slug, name, kind });
+		return mesh.createBoard(clusterId, adminToken, { slug, name, kind, about });
 	}
 
 	/**
