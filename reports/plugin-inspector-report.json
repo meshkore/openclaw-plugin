@@ -39,8 +39,8 @@
         {
           "name": "heartbeat_prompt_contribution",
           "file": "index.js",
-          "line": 126,
-          "ref": "index.js:126"
+          "line": 132,
+          "ref": "index.js:132"
         }
       ],
       "registrations": [
@@ -53,26 +53,26 @@
         {
           "name": "definePluginEntry",
           "file": "index.js",
-          "line": 37,
-          "ref": "index.js:37"
+          "line": 38,
+          "ref": "index.js:38"
         },
         {
           "name": "registerCli",
           "file": "index.js",
-          "line": 133,
-          "ref": "index.js:133"
+          "line": 139,
+          "ref": "index.js:139"
         },
         {
           "name": "registerService",
           "file": "index.js",
-          "line": 156,
-          "ref": "index.js:156"
+          "line": 162,
+          "ref": "index.js:162"
         },
         {
           "name": "registerTool",
           "file": "index.js",
-          "line": 112,
-          "ref": "index.js:112"
+          "line": 118,
+          "ref": "index.js:118"
         }
       ],
       "manifestContracts": [
@@ -88,6 +88,7 @@
         "scenarios/run.js",
         "src/commands.js",
         "src/credentials.js",
+        "src/geocode.js",
         "src/heartbeat.js",
         "src/identity.js",
         "src/memory.js",
@@ -132,7 +133,7 @@
       "package": {
         "path": "package.json",
         "name": "meshkore-plugin",
-        "version": "0.4.2",
+        "version": "0.5.0",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -177,7 +178,7 @@
         {
           "path": "package.json",
           "name": "meshkore-plugin",
-          "version": "0.4.2",
+          "version": "0.5.0",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -297,7 +298,7 @@
       "evidence": [
         "package.json",
         "meshkore-plugin",
-        "version:0.4.2"
+        "version:0.5.0"
       ]
     },
     {
