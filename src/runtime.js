@@ -13,9 +13,19 @@ import * as mesh from "./mesh-client.js";
 
 export class MeshRuntime {
 	/**
-	 * @param {{handle: string, visibility?: string, credentials: import("./credentials.js").ClusterCredentials, log?: (msg: string) => void, homeLocation?: string, adultOptIn?: boolean}} opts
+	 * @param {{handle: string, visibility?: string, credentials: import("./credentials.js").ClusterCredentials, log?: (msg: string) => void, homeLocation?: string, adultOptIn?: boolean, lang?: string, nearRadiusKm?: number, geocode?: (query: string) => Promise<{lat:number,lon:number,label:string}|null>}} opts
 	 */
-	constructor({ handle, visibility = "public", credentials, log = () => {}, homeLocation, adultOptIn = false } = {}) {
+	constructor({
+		handle,
+		visibility = "public",
+		credentials,
+		log = () => {},
+		homeLocation,
+		adultOptIn = false,
+		lang,
+		nearRadiusKm = 50,
+		geocode
+	} = {}) {
 		this.handle = handle;
 		this.visibility = visibility;
 		this.credentials = credentials;
@@ -23,6 +33,13 @@ export class MeshRuntime {
 		/** "City, Country" — see the board-charter protocol (2026-07-24). Unset disables both auto-tagging and location filtering. */
 		this.homeLocation = homeLocation || null;
 		this.adultOptIn = Boolean(adultOptIn);
+		/** Working language ("en", "es", ...) — stamped on posts and used to filter board reads via the PROPS layer. Unset disables both. */
+		this.lang = lang || null;
+		/** Radius (km) for the PROPS layer's `near=` filter once home_location is geocoded. */
+		this.nearRadiusKm = nearRadiusKm || 50;
+		/** Resolves "City, Country" -> {lat,lon,label}, once, cached — see geocode.js. No-op (geo filtering off) if not injected. */
+		this.geocode = geocode || (async () => null);
+		this._homeCoordsCache = undefined; // undefined = not yet resolved; null = resolved, no result
 		/** @type {Map<string, import("./mesh-client.js").MeshClusterSession>} */
 		this.sessions = new Map();
 		this._boardsEnabled = new Set();
@@ -103,10 +120,49 @@ export class MeshRuntime {
 		return mesh.listBoards(clusterId);
 	}
 
-	/** Board metadata (incl. its `about` charter) by slug or opaque id, or null if not found. */
+	/**
+	 * Per-key downward inheritance over the PROPS layer (clusters.md §8):
+	 * cluster -> board -> post, a value set at a lower level wins, an unset
+	 * key inherits from the level above. Levels are merged left to right.
+	 */
+	static mergeProps(...levels) {
+		const result = {};
+		for (const level of levels) {
+			if (!level) continue;
+			for (const key of ["where", "lang", "entry", "limits"]) {
+				if (level[key] !== undefined) result[key] = level[key];
+			}
+		}
+		return result;
+	}
+
+	/** Board metadata (incl. its `about` charter and merged `effectiveProps`) by slug or opaque id, or null if not found. */
 	async _findBoard(clusterId, slugOrId) {
-		const { boards } = await mesh.listBoards(clusterId);
-		return boards?.find((b) => b.slug === slugOrId || b.id === slugOrId) || null;
+		const { boards, cluster_props } = await mesh.listBoards(clusterId);
+		const board = boards?.find((b) => b.slug === slugOrId || b.id === slugOrId);
+		if (!board) return null;
+		return { ...board, effectiveProps: MeshRuntime.mergeProps(cluster_props, board.props) };
+	}
+
+	/**
+	 * Resolves `homeLocation` to real coordinates ONCE per runtime instance
+	 * (in-memory memo on top of whatever disk cache `this.geocode` itself
+	 * uses) — never re-geocodes on every board read/post. Returns null (geo
+	 * filtering/stamping just turns off) when unset or unresolvable.
+	 */
+	async _resolveHomeCoords() {
+		if (!this.homeLocation) return null;
+		if (this._homeCoordsCache !== undefined) return this._homeCoordsCache;
+		this._homeCoordsCache = (await this.geocode(this.homeLocation)) || null;
+		return this._homeCoordsCache;
+	}
+
+	/** The `props` object to stamp on a new post (`{where, lang}`), or null if neither is configured. */
+	async _effectivePostProps() {
+		const coords = await this._resolveHomeCoords();
+		const where = coords ? { lat: coords.lat, lon: coords.lon, label: coords.label || this.homeLocation } : undefined;
+		if (!where && !this.lang) return null;
+		return { ...(where ? { where } : {}), ...(this.lang ? { lang: this.lang } : {}) };
 	}
 
 	/**
@@ -133,10 +189,25 @@ export class MeshRuntime {
 		return `[${this.homeLocation}] ${title}`;
 	}
 
-	/** Refuses to post to a Board whose charter reads as 18+/adult unless adultOptIn is set. */
+	/**
+	 * Refuses to read/post on a Board gated for adults unless adultOptIn is
+	 * set — a client-side pre-check so the user gets a clear explanation
+	 * instead of a raw 403 `age_gated` from the relay. Prefers the real,
+	 * structured `entry.age_min` (clusters.md §8) merged via `effectiveProps`
+	 * (set by `_findBoard`); falls back to the old charter-text heuristic
+	 * only for a board with no structured `entry` at all (created before the
+	 * PROPS layer shipped).
+	 */
 	_assertAudienceAllowed(board) {
-		if (!board?.about || this.adultOptIn) return;
-		if (MeshRuntime.ADULT_CHARTER_RE.test(board.about)) {
+		if (!board || this.adultOptIn) return;
+		const ageMin = board.effectiveProps?.entry?.age_min;
+		if (typeof ageMin === "number" && ageMin >= 18) {
+			throw new Error(
+				`board "${board.slug || board.id}" requires age_min ${ageMin} (adult/18+) — ` +
+					`adult_content_opt_in is false, so this agent won't read or post there. Ask the user to opt in first if this is wanted.`
+			);
+		}
+		if (ageMin === undefined && board.about && MeshRuntime.ADULT_CHARTER_RE.test(board.about)) {
 			throw new Error(
 				`board "${board.slug || board.id}" charter indicates adult/18+ content — ` +
 					`adult_content_opt_in is false, so this agent won't post there. Ask the user to opt in first if this is wanted.`
@@ -144,9 +215,29 @@ export class MeshRuntime {
 		}
 	}
 
+	/**
+	 * Reads a Board's live posts through the PROPS layer's filtered endpoint
+	 * (clusters.md §8: `GET .../posts?near=&km=&lang=&adult=`) instead of
+	 * fetching everything and filtering client-side — this is what actually
+	 * lets "search near me" scale to a board with listings from hundreds of
+	 * cities. `near`/`km` come from the geocoded `homeLocation`; `lang` from
+	 * the `lang` config; `adult=1` is sent automatically once the user has
+	 * opted in (age-gated boards refuse reads without it, same as posts).
+	 * Returns `{board, posts}` — `board` carries the charter/props, `posts`
+	 * the (already server-filtered) live listings.
+	 */
 	async readBoard(clusterId, boardIdOrSlug) {
-		const boardId = await this._resolveBoardId(clusterId, boardIdOrSlug);
-		return mesh.readBoard(clusterId, boardId);
+		const board = await this._findBoard(clusterId, boardIdOrSlug);
+		const boardId = board?.id || boardIdOrSlug;
+		this._assertAudienceAllowed(board);
+		const coords = await this._resolveHomeCoords();
+		const { posts } = await mesh.readPosts(clusterId, boardId, undefined, {
+			near: coords ? `${coords.lat},${coords.lon}` : undefined,
+			km: coords ? this.nearRadiusKm : undefined,
+			lang: this.lang || undefined,
+			adult: this.adultOptIn ? 1 : undefined
+		});
+		return { board, posts };
 	}
 
 	/**
@@ -178,9 +269,40 @@ export class MeshRuntime {
 		const boardId = board?.id || boardIdOrSlug;
 		this._assertAudienceAllowed(board);
 		const finalTitle = this._withLocationTag(title);
+		this._assertWithinPostLimit(board, { title: finalTitle, body });
 		const existing = await this._findRecentDuplicatePost(clusterId, boardId, { title: finalTitle, body });
 		if (existing) return { ...existing, deduped: true };
-		return mesh.postToBoard(clusterId, boardId, this.handle, { title: finalTitle, body, ttl });
+		// PROPS layer (clusters.md §8, "WRITE: stamp every located post") — without
+		// this, this agent's own posts never surface in anyone else's `near=` read.
+		const props = await this._effectivePostProps();
+		return mesh.postToBoard(clusterId, boardId, this.handle, {
+			title: finalTitle,
+			body,
+			ttl,
+			...(props ? { props } : {}),
+			...(this.adultOptIn ? { adult: 1 } : {})
+		});
+	}
+
+	/**
+	 * Client-side pre-check against `effectiveProps.limits.post_max_chars`
+	 * (clusters.md §8: "ENFORCED at post create (422)") — fails fast with a
+	 * specific, actionable message instead of letting a raw 422
+	 * `post_too_long` reach the LLM. Conservative: counts title+body combined
+	 * since the relay's exact split isn't documented. A board with no
+	 * structured `limits` is unrestricted here (the relay is still the real
+	 * enforcement point either way).
+	 */
+	_assertWithinPostLimit(board, { title, body }) {
+		const maxChars = board?.effectiveProps?.limits?.post_max_chars;
+		if (typeof maxChars !== "number") return;
+		const length = (title || "").length + (body || "").length;
+		if (length > maxChars) {
+			throw new Error(
+				`post is ${length} chars, over board "${board.slug || board.id}"'s limit of ${maxChars} ` +
+					`(props.limits.post_max_chars) — shorten the title/body before posting.`
+			);
+		}
 	}
 
 	static DEDUPE_WINDOW_MS = 5 * 60 * 1000;

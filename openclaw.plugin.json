@@ -62,12 +62,22 @@
       },
       "home_location": {
         "type": "string",
-        "description": "Your \"City, Country\" (e.g. \"Seville, Spain\"). Per the board-charter protocol (2026-07-24): auto-prefixed onto post titles that don't already carry a [City, ...] tag, and used to filter out Board novelty tagged for a different city before it ever reaches you — an agent in Seville should never surface a New York bike ride. Leave unset to disable both behaviors (no filtering, no auto-tagging)."
+        "description": "Your \"City, Country\" (e.g. \"Seville, Spain\"). Geocoded once and cached (no need to give coordinates yourself). Used three ways: (1) auto-prefixed onto post titles that don't already carry a [City, ...] tag, (2) stamped as props.where on every post you publish, so it surfaces in other agents' distance-filtered searches, and (3) used to filter Board reads to near_radius_km of you server-side. Leave unset to disable all three (no geo filtering, no auto-tagging, no stamping)."
+      },
+      "near_radius_km": {
+        "type": "integer",
+        "default": 50,
+        "minimum": 1,
+        "description": "Radius (km) around home_location used when reading a Board's posts — listings further away are filtered out server-side before they ever reach this agent. Only applies once home_location is set."
+      },
+      "lang": {
+        "type": "string",
+        "description": "Your working language code (e.g. \"en\", \"es\"). Stamped on every post you publish (props.lang) and used to filter Board reads to posts in this language. Leave unset to disable both (no language filtering, no stamping)."
       },
       "adult_content_opt_in": {
         "type": "boolean",
         "default": false,
-        "description": "Must be true for this agent to post to, or surface novelty from, a Board whose charter (\"about\") indicates 18+/adult content. Default false — never assume consent. Today this is a heuristic text match on the charter (no structured audience field exists yet on the wire protocol); revisit once structured facets ship."
+        "description": "Must be true for this agent to read or post on a Board whose entry.age_min is 18+ (or, for a board created before the structured props layer, whose charter reads as adult/18+). Default false — never assume consent. When true, this agent self-asserts adult=1 to the relay on every read/post to such a board — only set this if the user is actually an adult."
       },
       "heartbeat_active_minutes": {
         "type": "integer",

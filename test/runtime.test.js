@@ -83,7 +83,7 @@ test("listBoards/readBoard/discoverClusters delegate to mesh-client over fetch",
 	const runtime = await makeRuntime();
 	await withMockFetch(
 		async (url) => {
-			if (url.includes("/boards/b_1")) return { ok: true, status: 200, text: async () => JSON.stringify({ id: "b_1", posts: [] }) };
+			if (url.includes("/boards/b_1/posts")) return { ok: true, status: 200, text: async () => JSON.stringify({ posts: [{ id: "p_1" }] }) };
 			if (url.includes("/boards")) return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
 			if (url.includes("/v1/clusters") && !url.includes("/c_"))
 				return { ok: true, status: 200, text: async () => JSON.stringify({ clusters: [] }) };
@@ -92,12 +92,226 @@ test("listBoards/readBoard/discoverClusters delegate to mesh-client over fetch",
 		async () => {
 			const boards = await runtime.listBoards("c_1");
 			assert.deepEqual(boards.boards, [{ id: "b_1", slug: "buysell" }]);
-			const board = await runtime.readBoard("c_1", "b_1");
-			assert.equal(board.id, "b_1");
+			const result = await runtime.readBoard("c_1", "b_1");
+			assert.equal(result.board.id, "b_1");
+			assert.deepEqual(result.posts, [{ id: "p_1" }]);
 			const discovered = await runtime.discoverClusters();
 			assert.deepEqual(discovered.clusters, []);
 		}
 	);
+});
+
+// --- PROPS layer (2026-07-26): geocoding, near/lang/adult filters, stamping ---
+
+test("mergeProps — per-key inheritance, lower level wins, unset inherits", () => {
+	const cluster = { where: { lat: 1, lon: 1, label: "Cluster City" }, lang: "en" };
+	const board = { lang: "es" };
+	assert.deepEqual(MeshRuntime.mergeProps(cluster, board), { where: { lat: 1, lon: 1, label: "Cluster City" }, lang: "es" });
+	assert.deepEqual(MeshRuntime.mergeProps(cluster, null), cluster);
+	assert.deepEqual(MeshRuntime.mergeProps(undefined, undefined), {});
+});
+
+test("_findBoard attaches effectiveProps merged from cluster_props + board.props", async () => {
+	const runtime = await makeRuntime();
+	await withMockFetch(
+		async () => ({
+			ok: true,
+			status: 200,
+			text: async () =>
+				JSON.stringify({
+					cluster_props: { lang: "en", entry: { age_min: 0 } },
+					boards: [{ id: "b_1", slug: "cars", props: { entry: { age_min: 18 } } }]
+				})
+		}),
+		async () => {
+			const board = await runtime._findBoard("c_1", "cars");
+			assert.deepEqual(board.effectiveProps, { lang: "en", entry: { age_min: 18 } });
+		}
+	);
+});
+
+test("_resolveHomeCoords geocodes once and caches in-memory; null without homeLocation", async () => {
+	let calls = 0;
+	const geocode = async () => {
+		calls++;
+		return { lat: 41.4, lon: 2.2, label: "Barcelona, Spain" };
+	};
+	const runtime = await makeRuntime({ homeLocation: "Barcelona, Spain", geocode });
+	assert.deepEqual(await runtime._resolveHomeCoords(), { lat: 41.4, lon: 2.2, label: "Barcelona, Spain" });
+	await runtime._resolveHomeCoords();
+	assert.equal(calls, 1, "geocode must only be called once, cached after that");
+
+	const noHome = await makeRuntime({ geocode });
+	assert.equal(await noHome._resolveHomeCoords(), null);
+	assert.equal(calls, 1, "no homeLocation configured means geocode is never even called");
+});
+
+test("_resolveHomeCoords — a failed/unresolvable geocode degrades to null, not a crash", async () => {
+	const runtime = await makeRuntime({ homeLocation: "Nowhereville", geocode: async () => null });
+	assert.equal(await runtime._resolveHomeCoords(), null);
+});
+
+test("readBoard forwards near/km/lang/adult derived from runtime config to mesh.readPosts", async () => {
+	const runtime = await makeRuntime({
+		homeLocation: "Seville, Spain",
+		lang: "es",
+		adultOptIn: true,
+		nearRadiusKm: 25,
+		geocode: async () => ({ lat: 37.4, lon: -5.99, label: "Seville, Spain" })
+	});
+	let capturedUrl;
+	await withMockFetch(
+		async (url) => {
+			if (url.includes("/posts")) {
+				capturedUrl = url;
+				return { ok: true, status: 200, text: async () => JSON.stringify({ posts: [] }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.readBoard("c_1", "buysell");
+		}
+	);
+	assert.match(capturedUrl, /near=37\.4%2C-5\.99/);
+	assert.match(capturedUrl, /km=25/);
+	assert.match(capturedUrl, /lang=es/);
+	assert.match(capturedUrl, /adult=1/);
+});
+
+test("readBoard omits filters entirely when nothing is configured", async () => {
+	const runtime = await makeRuntime();
+	let capturedUrl;
+	await withMockFetch(
+		async (url) => {
+			if (url.includes("/posts")) {
+				capturedUrl = url;
+				return { ok: true, status: 200, text: async () => JSON.stringify({ posts: [] }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.readBoard("c_1", "buysell");
+		}
+	);
+	assert.doesNotMatch(capturedUrl, /\?/);
+});
+
+test("readBoard refuses an age-gated board (structured entry.age_min) without adult_content_opt_in", async () => {
+	const runtime = await makeRuntime();
+	await withMockFetch(
+		async () => ({
+			ok: true,
+			status: 200,
+			text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "adults-only", props: { entry: { age_min: 18 } } }] })
+		}),
+		async () => {
+			await assert.rejects(() => runtime.readBoard("c_1", "adults-only"), /requires age_min 18/);
+		}
+	);
+});
+
+test("postToBoard stamps props.where/props.lang and sends adult=1 once opted in", async () => {
+	const runtime = await makeRuntime({
+		homeLocation: "Seville, Spain",
+		lang: "es",
+		adultOptIn: true,
+		geocode: async () => ({ lat: 37.4, lon: -5.99, label: "Seville, Spain" })
+	});
+	let postedBody;
+	let postedUrl;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postedUrl = url;
+				postedBody = JSON.parse(opts.body);
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "Selling my bike", body: "150€" });
+		}
+	);
+	assert.deepEqual(postedBody.props, { where: { lat: 37.4, lon: -5.99, label: "Seville, Spain" }, lang: "es" });
+	assert.match(postedUrl, /adult=1/);
+});
+
+test("postToBoard refuses a post over the board's props.limits.post_max_chars", async () => {
+	const runtime = await makeRuntime();
+	await withMockFetch(
+		async () => ({
+			ok: true,
+			status: 200,
+			text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell", props: { limits: { post_max_chars: 10 } } }] })
+		}),
+		async () => {
+			await assert.rejects(
+				() => runtime.postToBoard("c_1", "buysell", { title: "Way too long a title", body: "and body" }),
+				/over board "buysell"'s limit of 10/
+			);
+		}
+	);
+});
+
+test("postToBoard allows a post within the board's props.limits.post_max_chars", async () => {
+	const runtime = await makeRuntime();
+	let postCalled = false;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postCalled = true;
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return {
+				ok: true,
+				status: 200,
+				text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell", props: { limits: { post_max_chars: 1000 } } }] })
+			};
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "Short", body: "and short" });
+		}
+	);
+	assert.equal(postCalled, true);
+});
+
+test("postToBoard — a board with no structured limits is unrestricted client-side", async () => {
+	const runtime = await makeRuntime();
+	let postCalled = false;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postCalled = true;
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "x".repeat(5000), body: "y".repeat(5000) });
+		}
+	);
+	assert.equal(postCalled, true);
+});
+
+test("postToBoard sends no props/adult when nothing is configured", async () => {
+	const runtime = await makeRuntime();
+	let postedBody;
+	let postedUrl;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") {
+				postedUrl = url;
+				postedBody = JSON.parse(opts.body);
+				return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+			}
+			return { ok: true, status: 200, text: async () => JSON.stringify({ boards: [{ id: "b_1", slug: "buysell" }] }) };
+		},
+		async () => {
+			await runtime.postToBoard("c_1", "buysell", { title: "Selling my bike", body: "150€" });
+		}
+	);
+	assert.equal("props" in postedBody, false);
+	assert.doesNotMatch(postedUrl, /adult=/);
 });
 
 test("_resolveBoardId — passes through an opaque id, resolves a slug via listBoards", async () => {

@@ -65,10 +65,15 @@ export function wireWallDelivery(session, { deliver, selfHandle }) {
 		if (frame.from === selfHandle) return; // never echo our own sends
 		const isDm = Boolean(frame.to);
 		const text = typeof frame.payload === "string" ? frame.payload : frame.payload?.text || "[media]";
+		// A #board-slug/#post-id hashtag in the sender's text is resolved by the
+		// relay into structured `board`/`ref` fields on the frame (clusters.md
+		// §4) — surface that scope instead of flattening it away, so the
+		// receiving agent knows this message is about a specific Board/post.
+		const scope = frame.ref ? ` (on #${frame.ref})` : frame.board ? ` (on #${frame.board})` : "";
 		deliver(
 			isDm
-				? `[MeshKore] DM from ${frame.from}: ${text}`
-				: `[MeshKore] ${frame.from} (broadcast): ${text}`
+				? `[MeshKore] DM from ${frame.from}${scope}: ${text}`
+				: `[MeshKore] ${frame.from} (broadcast${scope}): ${text}`
 		);
 	});
 }

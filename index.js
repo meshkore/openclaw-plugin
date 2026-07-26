@@ -29,6 +29,7 @@ import { loadOrCreateIdentity } from "./src/identity.js";
 import { createHeartbeatService } from "./src/heartbeat.js";
 import { createBoardNoveltyTick, SeenPostsStore, wireWallDelivery } from "./src/novelty.js";
 import { MeshRuntime } from "./src/runtime.js";
+import { GeoCache, createGeocoder } from "./src/geocode.js";
 import { createMeshTools } from "./src/tools.js";
 import { createOracleTools } from "./src/oracle-tools.js";
 import { registerMeshCli } from "./src/commands.js";
@@ -54,6 +55,8 @@ const meshkore_plugin_default = definePluginEntry({
 			state.memory = await new InterestsMemory(join(stateDir, "memory.json")).load();
 			state.seenStore = await new SeenPostsStore(join(stateDir, "seen.json")).load();
 			const credentials = await new ClusterCredentials(join(stateDir, "cluster-credentials.json")).load();
+			const geoCache = await new GeoCache(join(stateDir, "geo-cache.json")).load();
+			const geocode = createGeocoder(geoCache);
 
 			// Automatic, STABLE identity — generated once and persisted, so this
 			// OpenClaw install always presents the same handle on the mesh (a
@@ -69,7 +72,10 @@ const meshkore_plugin_default = definePluginEntry({
 				credentials,
 				log,
 				homeLocation: config.home_location,
-				adultOptIn: config.adult_content_opt_in
+				adultOptIn: config.adult_content_opt_in,
+				lang: config.lang,
+				nearRadiusKm: config.near_radius_km,
+				geocode
 			});
 
 			// Deliver hook. Was: push a plugin-composed, pre-formatted string

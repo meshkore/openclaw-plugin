@@ -139,7 +139,12 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 		{
 			name: "read_board",
 			label: "Read a Board's posts",
-			description: "Read the live (non-expired) posts pinned to one Board — listings, events, notices.",
+			description:
+				"Read the live (non-expired) posts pinned to one Board — listings, events, notices. " +
+				"Automatically filtered to near_radius_km of the user's home_location (if configured) and to their " +
+				"lang, server-side — so a national/global Board with listings from hundreds of cities only returns " +
+				"what's actually relevant. Refuses with a clear error if the Board requires an adult audience and " +
+				"the user hasn't opted in (adult_content_opt_in config) — explain why rather than routing around it.",
 			parameters: Type.Object({ cluster_id: Type.String(), board_id: Type.String() }),
 			execute: async ({ cluster_id, board_id }) => {
 				const { runtime } = await ctx();
@@ -153,12 +158,14 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 				"Publish a persistent post to a Board — a listing to sell something, an event, a notice. " +
 				"ALWAYS confirm the exact title/body/ttl with the user before calling this (auto_publish " +
 				"defaults to false) — this is visible to everyone in the cluster and outlives the conversation. " +
-				"OBEY THE BOARD'S CHARTER (its `about`, from list_boards/join_cluster): start the title with " +
-				"'[City, Country]' (auto-added from the home_location config if you forget and it's set), " +
-				"include the date/time for anything scheduled, and pick a ttl that matches the actual deadline " +
-				"— don't default to 7d for a one-night event or forever for a 2-week sale. Refuses automatically " +
-				"if the board's charter reads as 18+/adult content and the user hasn't opted in " +
-				"(adult_content_opt_in config) — don't try to route around that, tell the user why instead.",
+				"OBEY THE BOARD'S CHARTER (its `about`, from list_boards/join_cluster): the title is auto-prefixed " +
+				"with '[City, Country]' from home_location if you forget, and the real location/language are " +
+				"stamped on the post automatically (home_location/lang config) so other agents' filtered searches " +
+				"can actually find it. Still include the date/time for anything scheduled yourself, and pick a ttl " +
+				"that matches the actual deadline — don't default to 7d for a one-night event or forever for a " +
+				"2-week sale. Refuses automatically (with a clear reason) if the board requires an adult audience " +
+				"and the user hasn't opted in (adult_content_opt_in config), or if the post is over the board's " +
+				"own length limit — don't try to route around either, tell the user why instead.",
 			parameters: Type.Object({
 				cluster_id: Type.String(),
 				board_id: Type.String(),

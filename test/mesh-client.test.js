@@ -5,6 +5,7 @@ import {
 	MeshClusterSession,
 	discoverClusters,
 	listBoards,
+	readPosts,
 	postToBoard,
 	createBoard,
 	MESHKORE_API
@@ -124,6 +125,48 @@ test("postToBoard — sends title/body/ttl and defaults ttl to 7d", async () => 
 	assert.match(sentUrl, /agent=alice/);
 	assert.equal(sentBody.title, "Bike");
 	assert.equal(sentBody.ttl, "7d");
+	globalThis.fetch = originalFetch;
+});
+
+test("readPosts — builds no query string with no filters, all four with all given", async () => {
+	let sentUrl;
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url) => {
+		sentUrl = url;
+		return { ok: true, status: 200, text: async () => JSON.stringify({ posts: [] }) };
+	};
+	await readPosts("c_1", "b_1");
+	assert.doesNotMatch(sentUrl, /\?/);
+
+	await readPosts("c_1", "b_1", undefined, { near: "37.4,-5.99", km: 25, lang: "es", adult: 1 });
+	assert.match(sentUrl, /near=37\.4%2C-5\.99/);
+	assert.match(sentUrl, /km=25/);
+	assert.match(sentUrl, /lang=es/);
+	assert.match(sentUrl, /adult=1/);
+	globalThis.fetch = originalFetch;
+});
+
+test("postToBoard — sends props and adult=1 only when given", async () => {
+	let sentBody;
+	let sentUrl;
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url, opts) => {
+		sentUrl = url;
+		sentBody = JSON.parse(opts.body);
+		return { ok: true, status: 201, text: async () => JSON.stringify({ id: "p_1" }) };
+	};
+	await postToBoard("c_1", "b_1", "alice", {
+		title: "Bike",
+		body: "150€",
+		props: { where: { lat: 1, lon: 2, label: "X" }, lang: "es" },
+		adult: 1
+	});
+	assert.deepEqual(sentBody.props, { where: { lat: 1, lon: 2, label: "X" }, lang: "es" });
+	assert.match(sentUrl, /adult=1/);
+
+	await postToBoard("c_1", "b_1", "alice", { title: "Bike", body: "150€" });
+	assert.equal("props" in sentBody, false);
+	assert.doesNotMatch(sentUrl, /adult=/);
 	globalThis.fetch = originalFetch;
 });
 

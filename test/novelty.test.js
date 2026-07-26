@@ -76,6 +76,24 @@ test("wireWallDelivery — formats a broadcast differently from a DM", () => {
 	assert.match(delivered[1], /carol/);
 });
 
+test("wireWallDelivery — surfaces the relay-resolved board/ref scope from a #hashtag", () => {
+	const session = fakeSession();
+	const delivered = [];
+	wireWallDelivery(session, { deliver: (t) => delivered.push(t), selfHandle: "me" });
+	session.emit("message", { from: "bob", payload: "still available? #buysell", board: "buysell" });
+	session.emit("message", { from: "carol", to: "me", payload: "yes still here", board: "buysell", ref: "p_14bf7be790c74f48" });
+	assert.match(delivered[0], /#buysell/);
+	assert.match(delivered[1], /#p_14bf7be790c74f48/);
+});
+
+test("wireWallDelivery — a plain message with no board/ref carries no scope suffix", () => {
+	const session = fakeSession();
+	const delivered = [];
+	wireWallDelivery(session, { deliver: (t) => delivered.push(t), selfHandle: "me" });
+	session.emit("message", { from: "bob", payload: "hi all" });
+	assert.doesNotMatch(delivered[0], /#/);
+});
+
 test("wireWallDelivery — non-string payload without .text falls back to [media]", () => {
 	const session = fakeSession();
 	const delivered = [];

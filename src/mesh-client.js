@@ -90,11 +90,24 @@ export function readBoard(clusterId, boardId) {
 	return apiFetch(`/v1/clusters/${encodeURIComponent(clusterId)}/boards/${encodeURIComponent(boardId)}`);
 }
 
-/** GET /v1/clusters/:id/boards/:bid/posts[/:pid] */
-export function readPosts(clusterId, boardId, postId) {
+/**
+ * GET /v1/clusters/:id/boards/:bid/posts[/:pid] — the PROPS layer's filtered
+ * read (clusters.md §8): `near="<lat>,<lon>"` + `km=<radius>` filters by
+ * distance to each post's EFFECTIVE `props.where` (relay-side; unlocated
+ * posts are excluded from a `near` query), `lang` filters by effective
+ * `props.lang`, `adult=1` self-asserts an adult human — required to read a
+ * board whose `entry.age_min >= 18` (403 `age_gated` otherwise).
+ */
+export function readPosts(clusterId, boardId, postId, { near, km, lang, adult } = {}) {
 	const suffix = postId ? `/${encodeURIComponent(postId)}` : "";
+	const q = new URLSearchParams();
+	if (near) q.set("near", near);
+	if (km != null) q.set("km", km);
+	if (lang) q.set("lang", lang);
+	if (adult) q.set("adult", adult);
+	const qs = q.toString();
 	return apiFetch(
-		`/v1/clusters/${encodeURIComponent(clusterId)}/boards/${encodeURIComponent(boardId)}/posts${suffix}`
+		`/v1/clusters/${encodeURIComponent(clusterId)}/boards/${encodeURIComponent(boardId)}/posts${suffix}${qs ? `?${qs}` : ""}`
 	);
 }
 
@@ -139,11 +152,17 @@ export function deleteBoard(clusterId, boardId, adminToken) {
 /**
  * POST /v1/clusters/:id/boards/:bid/posts?agent=<handle> — pin a post. Any
  * member (tokenless on a public cluster). `ttl` in {24h|7d|30d|1y|forever}.
+ * `props` (`{where, lang}`) is the PROPS-layer stamp (clusters.md §8, "WRITE:
+ * stamp every located post") — a post without it never surfaces in anyone
+ * else's `near=` filtered read. `adult=1` self-asserts an adult human — a
+ * board with `entry.age_min >= 18` refuses the create (422/403) without it.
  */
-export function postToBoard(clusterId, boardId, agent, { title, body, ttl = "7d", file } = {}) {
+export function postToBoard(clusterId, boardId, agent, { title, body, ttl = "7d", file, props, adult } = {}) {
+	const q = new URLSearchParams({ agent });
+	if (adult) q.set("adult", adult);
 	return apiFetch(
-		`/v1/clusters/${encodeURIComponent(clusterId)}/boards/${encodeURIComponent(boardId)}/posts?agent=${encodeURIComponent(agent)}`,
-		{ method: "POST", body: JSON.stringify({ title, body, ttl, ...(file ? { file } : {}) }) }
+		`/v1/clusters/${encodeURIComponent(clusterId)}/boards/${encodeURIComponent(boardId)}/posts?${q}`,
+		{ method: "POST", body: JSON.stringify({ title, body, ttl, ...(file ? { file } : {}), ...(props ? { props } : {}) }) }
 	);
 }
 
