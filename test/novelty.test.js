@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SeenPostsStore, wireWallDelivery, createBoardNoveltyTick, parseLocationTag, locationMatches } from "../src/novelty.js";
+import { SeenPostsStore, OwnPostsStore, wireWallDelivery, createBoardNoveltyTick, parseLocationTag, locationMatches } from "../src/novelty.js";
 
 function tmpFile() {
 	return join(tmpdir(), `meshkore-novelty-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
@@ -74,6 +74,56 @@ test("wireWallDelivery — formats a broadcast differently from a DM", () => {
 	assert.match(delivered[1], /DM/);
 	assert.match(delivered[0], /bob/);
 	assert.match(delivered[1], /carol/);
+});
+
+test("OwnPostsStore — add/has round-trip, bounded to 500, persists across reload", async () => {
+	const file = tmpFile();
+	const store = await new OwnPostsStore(file).load();
+	assert.equal(store.has("p_1"), false);
+	await store.add("p_1");
+	assert.equal(store.has("p_1"), true);
+	await store.add("p_1"); // idempotent
+	assert.equal(store.ids.length, 1);
+	for (let i = 0; i < 510; i++) await store.add(`p_x${i}`);
+	assert.equal(store.ids.length, 500);
+	const reloaded = await new OwnPostsStore(file).load();
+	assert.equal(reloaded.has("p_x509"), true);
+	assert.equal(reloaded.has("p_1"), false, "the oldest ids were evicted past the 500 bound");
+});
+
+test("OwnPostsStore — missing file loads as empty, not an error", async () => {
+	const store = await new OwnPostsStore(join(tmpdir(), "does-not-exist-meshkore-own.json")).load();
+	assert.deepEqual(store.ids, []);
+});
+
+test("wireWallDelivery — a reply to OUR OWN post is labeled high-signal (worth replying)", () => {
+	const session = fakeSession();
+	const delivered = [];
+	wireWallDelivery(session, {
+		deliver: (t) => delivered.push(t),
+		selfHandle: "me",
+		isOwnPost: (id) => id === "p_mine"
+	});
+	// reply threaded under our own post
+	session.emit("message", { from: "buyer", payload: "still available?", ref: "p_mine" });
+	// reply threaded under SOMEONE ELSE's post -> not high-signal
+	session.emit("message", { from: "x", payload: "nice", ref: "p_theirs" });
+	assert.match(delivered[0], /replied to YOUR post #p_mine/);
+	assert.match(delivered[0], /worth replying/);
+	assert.doesNotMatch(delivered[1], /YOUR post/);
+	assert.doesNotMatch(delivered[1], /worth replying/);
+});
+
+test("wireWallDelivery — a DM to us is flagged worth replying, a broadcast is not", () => {
+	const session = fakeSession();
+	const delivered = [];
+	wireWallDelivery(session, { deliver: (t) => delivered.push(t), selfHandle: "me", isOwnPost: () => false });
+	session.emit("message", { from: "alice", to: "me", payload: "psst" });
+	session.emit("message", { from: "bob", payload: "hi everyone" });
+	assert.match(delivered[0], /DM from alice/);
+	assert.match(delivered[0], /worth replying/);
+	assert.match(delivered[1], /broadcast/);
+	assert.doesNotMatch(delivered[1], /worth replying/);
 });
 
 test("wireWallDelivery — surfaces the relay-resolved board/ref scope from a #hashtag", () => {

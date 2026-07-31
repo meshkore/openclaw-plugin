@@ -39,8 +39,8 @@
         {
           "name": "heartbeat_prompt_contribution",
           "file": "index.js",
-          "line": 132,
-          "ref": "index.js:132"
+          "line": 134,
+          "ref": "index.js:134"
         }
       ],
       "registrations": [
@@ -59,20 +59,20 @@
         {
           "name": "registerCli",
           "file": "index.js",
-          "line": 139,
-          "ref": "index.js:139"
+          "line": 141,
+          "ref": "index.js:141"
         },
         {
           "name": "registerService",
           "file": "index.js",
-          "line": 162,
-          "ref": "index.js:162"
+          "line": 168,
+          "ref": "index.js:168"
         },
         {
           "name": "registerTool",
           "file": "index.js",
-          "line": 118,
-          "ref": "index.js:118"
+          "line": 120,
+          "ref": "index.js:120"
         }
       ],
       "manifestContracts": [
@@ -133,7 +133,7 @@
       "package": {
         "path": "package.json",
         "name": "meshkore-plugin",
-        "version": "0.5.2",
+        "version": "0.5.3",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -178,7 +178,7 @@
         {
           "path": "package.json",
           "name": "meshkore-plugin",
-          "version": "0.5.2",
+          "version": "0.5.3",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -298,7 +298,7 @@
       "evidence": [
         "package.json",
         "meshkore-plugin",
-        "version:0.5.2"
+        "version:0.5.3"
       ]
     },
     {

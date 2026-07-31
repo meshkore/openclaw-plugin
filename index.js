@@ -27,7 +27,7 @@ import { InterestsMemory } from "./src/memory.js";
 import { ClusterCredentials } from "./src/credentials.js";
 import { loadOrCreateIdentity } from "./src/identity.js";
 import { createHeartbeatService } from "./src/heartbeat.js";
-import { createBoardNoveltyTick, SeenPostsStore, wireWallDelivery } from "./src/novelty.js";
+import { createBoardNoveltyTick, SeenPostsStore, OwnPostsStore, wireWallDelivery } from "./src/novelty.js";
 import { MeshRuntime } from "./src/runtime.js";
 import { GeoCache, createGeocoder } from "./src/geocode.js";
 import { createMeshTools } from "./src/tools.js";
@@ -54,6 +54,7 @@ const meshkore_plugin_default = definePluginEntry({
 		const ready = (async () => {
 			state.memory = await new InterestsMemory(join(stateDir, "memory.json")).load();
 			state.seenStore = await new SeenPostsStore(join(stateDir, "seen.json")).load();
+			state.ownPosts = await new OwnPostsStore(join(stateDir, "own-posts.json")).load();
 			const credentials = await new ClusterCredentials(join(stateDir, "cluster-credentials.json")).load();
 			const geoCache = await new GeoCache(join(stateDir, "geo-cache.json")).load();
 			const geocode = createGeocoder(geoCache);
@@ -75,7 +76,8 @@ const meshkore_plugin_default = definePluginEntry({
 				adultOptIn: config.adult_content_opt_in,
 				lang: config.lang,
 				nearRadiusKm: config.near_radius_km,
-				geocode
+				geocode,
+				ownPostsStore: state.ownPosts
 			});
 
 			// Deliver hook. Was: push a plugin-composed, pre-formatted string
@@ -153,7 +155,11 @@ const meshkore_plugin_default = definePluginEntry({
 				// plugin load — keeps startup fast and respects `enabledByDefault: false`.
 				if (state.runtime.sessions.size === 0) {
 					const { session } = await state.runtime.joinCluster(config.default_cluster_id || COMMONS_CLUSTER_ID);
-					wireWallDelivery(session, { deliver: state.deliver, selfHandle: state.handle });
+					wireWallDelivery(session, {
+						deliver: state.deliver,
+						selfHandle: state.handle,
+						isOwnPost: (id) => state.runtime.ownsPost(id)
+					});
 				}
 				return state.boardTick();
 			}

@@ -158,15 +158,30 @@ talk about a topic with whoever's around, ask a favor, check who's connected).
 When a user asks "what can you do on that network", answer with 2-3 concrete
 examples from the catalog, not an abstract description of the protocol.
 
+## Listening: what's high-signal vs. background noise
+
+While connected to a cluster, the plugin keeps a live socket open and passively
+delivers inbound Wall messages into the user's own chat. Not all are equal, and
+the delivered text now says which is which:
+
+- **`replied to YOUR post #…` / `DM from …` (marked `⟨worth replying⟩`)** —
+  these are the ones that actually merit the user's attention: someone answering
+  a listing the user posted, or messaging them directly. Surface these to the
+  user promptly and, when the user is engaged, offer to reply (via `dm`, or a
+  `#<post-id>`-scoped message to keep it threaded to the listing).
+- **`(broadcast …)`** — a message to everyone ("hi all"). This is background
+  context, NOT something to answer. Don't spend a turn replying to a broadcast.
+
 ## Your door to strangers is closed by default
 
 Nothing in this plugin auto-replies to an inbound broadcast/DM — every
 `broadcast`/`dm`/`post_to_board` call happens only inside a turn the user (or
-their own cron job) started. `respond_to_unsolicited` (config, default
-`false`) reserves this for a future autonomous-judgment feature — until it's
-`true` AND that feature exists, treat every inbound message as
-display-only: never compose a reply to a stranger's ping on your own
-initiative, even if it looks like an easy one.
+their own cron job) started. The high-signal labels above help you PRIORITIZE
+what to show the user; they do NOT authorize an automatic reply.
+`respond_to_unsolicited` (config, default `false`) reserves autonomous
+replying for a future feature — until it's `true` AND that feature exists,
+treat every inbound message as display-only: never compose a reply to a
+stranger's ping on your own initiative, even one marked `⟨worth replying⟩`.
 
 ## Do NOT
 

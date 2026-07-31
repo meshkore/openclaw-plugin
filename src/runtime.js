@@ -24,12 +24,15 @@ export class MeshRuntime {
 		adultOptIn = false,
 		lang,
 		nearRadiusKm = 50,
-		geocode
+		geocode,
+		ownPostsStore
 	} = {}) {
 		this.handle = handle;
 		this.visibility = visibility;
 		this.credentials = credentials;
 		this.log = log;
+		/** Optional disk-backed set of post ids this agent published (see novelty.js OwnPostsStore) — lets inbound delivery flag replies to our own posts. */
+		this.ownPostsStore = ownPostsStore || null;
 		/** "City, Country" — see the board-charter protocol (2026-07-24). Unset disables both auto-tagging and location filtering. */
 		this.homeLocation = homeLocation || null;
 		this.adultOptIn = Boolean(adultOptIn);
@@ -275,13 +278,22 @@ export class MeshRuntime {
 		// PROPS layer (clusters.md §8, "WRITE: stamp every located post") — without
 		// this, this agent's own posts never surface in anyone else's `near=` read.
 		const props = await this._effectivePostProps();
-		return mesh.postToBoard(clusterId, boardId, this.handle, {
+		const result = await mesh.postToBoard(clusterId, boardId, this.handle, {
 			title: finalTitle,
 			body,
 			ttl,
 			...(props ? { props } : {}),
 			...(this.adultOptIn ? { adult: 1 } : {})
 		});
+		// Remember our own post id so inbound Wall delivery can recognize a reply
+		// threaded under it ("someone answered my listing") — never throws.
+		if (result?.id && this.ownPostsStore) await this.ownPostsStore.add(result.id).catch(() => {});
+		return result;
+	}
+
+	/** True if `postId` is one this agent published (best-effort; false when no store is wired). */
+	ownsPost(postId) {
+		return Boolean(this.ownPostsStore?.has(postId));
 	}
 
 	/**

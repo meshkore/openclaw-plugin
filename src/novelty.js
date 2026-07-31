@@ -56,10 +56,59 @@ export class SeenPostsStore {
 }
 
 /**
+ * OwnPostsStore — a bounded, disk-backed set of the post ids THIS agent has
+ * published. It exists so inbound Wall delivery can tell "someone replied to
+ * one of MY listings" apart from generic chatter (a reply carries the relay-
+ * resolved `ref` = the post id it threads under; clusters.md §4/§8). That
+ * distinction is the safe half of the autonomous-listen initiative — it lets
+ * the plugin HIGHLIGHT the messages that actually merit the user's attention
+ * (DMs to us, replies to our posts) without ever auto-replying.
+ */
+export class OwnPostsStore {
+	constructor(filePath) {
+		this.filePath = filePath;
+		/** @type {string[]} recent own post ids (bounded) */
+		this.ids = [];
+	}
+
+	async load() {
+		try {
+			this.ids = JSON.parse(await readFile(this.filePath, "utf8"));
+			if (!Array.isArray(this.ids)) this.ids = [];
+		} catch (err) {
+			if (err.code !== "ENOENT") throw err;
+			this.ids = [];
+		}
+		return this;
+	}
+
+	async save() {
+		await mkdir(dirname(this.filePath), { recursive: true });
+		await writeFile(this.filePath, JSON.stringify(this.ids, null, 2), { encoding: "utf8", mode: 0o600 });
+	}
+
+	has(id) {
+		return id != null && this.ids.includes(id);
+	}
+
+	async add(id) {
+		if (id == null || this.ids.includes(id)) return;
+		this.ids.push(id);
+		this.ids = this.ids.slice(-500); // bounded, same ring-buffer philosophy as SeenPostsStore
+		await this.save();
+	}
+}
+
+/**
  * Attach live-push delivery to a just-joined cluster's Wall. Call this right
  * after runtime.joinCluster(). Idempotent per session (listeners attach once).
+ *
+ * `isOwnPost(id)` (optional) lets delivery recognize a reply threaded under one
+ * of THIS agent's own posts (frame.ref) and mark it as high-signal — the exact
+ * "someone answered my car listing" case. Still passive: this only labels what
+ * reaches the user; it never sends a reply.
  */
-export function wireWallDelivery(session, { deliver, selfHandle }) {
+export function wireWallDelivery(session, { deliver, selfHandle, isOwnPost }) {
 	session.addEventListener("message", (e) => {
 		const frame = e.detail;
 		if (frame.from === selfHandle) return; // never echo our own sends
@@ -69,12 +118,23 @@ export function wireWallDelivery(session, { deliver, selfHandle }) {
 		// relay into structured `board`/`ref` fields on the frame (clusters.md
 		// §4) — surface that scope instead of flattening it away, so the
 		// receiving agent knows this message is about a specific Board/post.
+		const repliesToOurPost = Boolean(frame.ref && isOwnPost?.(frame.ref));
 		const scope = frame.ref ? ` (on #${frame.ref})` : frame.board ? ` (on #${frame.board})` : "";
-		deliver(
-			isDm
-				? `[MeshKore] DM from ${frame.from}${scope}: ${text}`
-				: `[MeshKore] ${frame.from} (broadcast${scope}): ${text}`
-		);
+		// DMs to us and replies to our own posts are the messages that actually
+		// merit a response — flag them so the user's agent surfaces them first
+		// and treats a broadcast "hi everyone" as low-priority context, not
+		// something to spend a turn answering.
+		const worthReplying = isDm || repliesToOurPost;
+		const attn = worthReplying ? " ⟨worth replying⟩" : "";
+		let line;
+		if (repliesToOurPost) {
+			line = `[MeshKore] ${frame.from} replied to YOUR post #${frame.ref}: ${text}${attn}`;
+		} else if (isDm) {
+			line = `[MeshKore] DM from ${frame.from}${scope}: ${text}${attn}`;
+		} else {
+			line = `[MeshKore] ${frame.from} (broadcast${scope}): ${text}`;
+		}
+		deliver(line);
 	});
 }
 
