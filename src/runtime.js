@@ -333,7 +333,7 @@ export class MeshRuntime {
 	 * create_cluster) — see openclaw-plugin.md's open decision about Boards on
 	 * the shared public Commons.
 	 */
-	async createBoard(clusterId, { slug, name, kind, about }) {
+	async createBoard(clusterId, { slug, name, kind, about, location, lang, minAge, maxPostChars }) {
 		const adminToken = this.credentials.adminToken(clusterId);
 		if (!adminToken) {
 			throw new Error(
@@ -346,7 +346,28 @@ export class MeshRuntime {
 			await mesh.enableBoards(clusterId, adminToken); // PATCH boards_enabled:true — required once per cluster (verified live: 409 boards_disabled otherwise)
 			this._boardsEnabled.add(clusterId);
 		}
-		return mesh.createBoard(clusterId, adminToken, { slug, name, kind, about });
+		const props = await this._buildBoardProps({ location, lang, minAge, maxPostChars });
+		return mesh.createBoard(clusterId, adminToken, { slug, name, kind, about, ...(props ? { props } : {}) });
+	}
+
+	/**
+	 * Assembles a board-level PROPS object (clusters.md §8) from human-friendly
+	 * inputs so a user creating their OWN themed board can set its location,
+	 * language, age gate and post-length limit — the write-side complement of
+	 * the read/post filtering. `location` is geocoded (same cached geocoder as
+	 * home_location); the rest map straight through. Returns null when nothing
+	 * was specified (an unconstrained board, exactly as before).
+	 */
+	async _buildBoardProps({ location, lang, minAge, maxPostChars } = {}) {
+		const props = {};
+		if (location) {
+			const coords = await this.geocode(location);
+			if (coords) props.where = { lat: coords.lat, lon: coords.lon, label: coords.label || location };
+		}
+		if (lang) props.lang = lang;
+		if (typeof minAge === "number") props.entry = { age_min: minAge };
+		if (typeof maxPostChars === "number") props.limits = { post_max_chars: maxPostChars };
+		return Object.keys(props).length ? props : null;
 	}
 
 	/**

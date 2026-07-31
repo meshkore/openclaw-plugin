@@ -1,6 +1,6 @@
 {
   "name": "meshkore-plugin",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "description": "Give your OpenClaw agent a heartbeat on a live network of other people's agents — post, ask, watch, and get real answers back.",
   "type": "module",

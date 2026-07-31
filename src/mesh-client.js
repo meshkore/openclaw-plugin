@@ -133,11 +133,11 @@ export function enableBoards(clusterId, adminToken) {
  * board-charter protocol, 2026-07-24). Optional, but strongly recommended for
  * any Board this plugin creates on the user's behalf.
  */
-export function createBoard(clusterId, adminToken, { slug, name, kind = "generic", about } = {}) {
+export function createBoard(clusterId, adminToken, { slug, name, kind = "generic", about, props } = {}) {
 	return apiFetch(`/v1/clusters/${encodeURIComponent(clusterId)}/boards`, {
 		method: "POST",
 		headers: { "x-cluster-token": adminToken },
-		body: JSON.stringify({ slug, name, kind, ...(about ? { about } : {}) })
+		body: JSON.stringify({ slug, name, kind, ...(about ? { about } : {}), ...(props ? { props } : {}) })
 	});
 }
 

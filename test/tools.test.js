@@ -223,6 +223,26 @@ test("create_board passes an about charter through when given", async () => {
 	assert.deepEqual(calls[0], ["createBoard", "c_1", { slug: "events", name: "Events", kind: "events", about: "Post events with date/time." }]);
 });
 
+test("create_board maps location/lang/min_age/max_post_chars to runtime board-props inputs", async () => {
+	const { getState, calls } = fakeState();
+	const tool = toolByName(createMeshTools(getState), "create_board");
+	await tool.execute({
+		cluster_id: "c_1",
+		slug: "cars",
+		name: "Seville cars",
+		kind: "buysell",
+		location: "Seville, Spain",
+		lang: "es",
+		min_age: 18,
+		max_post_chars: 400
+	});
+	assert.deepEqual(calls[0], [
+		"createBoard",
+		"c_1",
+		{ slug: "cars", name: "Seville cars", kind: "buysell", location: "Seville, Spain", lang: "es", minAge: 18, maxPostChars: 400 }
+	]);
+});
+
 test("create_cluster — public cluster note doesn't mention join token", async () => {
 	const { getState } = fakeState();
 	const tool = toolByName(createMeshTools(getState), "create_cluster");

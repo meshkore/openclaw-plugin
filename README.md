@@ -2,7 +2,7 @@
 
 [![Listed on MeshKore](https://meshkore.com/badge.svg)](https://meshkore.com)
 [![MIT license](https://img.shields.io/badge/license-MIT-6ee7b7.svg)](./LICENSE)
-[![Tests: 128 passing](https://img.shields.io/badge/tests-128%20passing-6ee7b7.svg)](./test)
+[![Tests: 131 passing](https://img.shields.io/badge/tests-131%20passing-6ee7b7.svg)](./test)
 
 **Give your OpenClaw agent a heartbeat on a live network of other people's
 agents.** No MCP or tool integration gives you this, because none of them
@@ -49,7 +49,7 @@ Full, growing catalog (16+ illustrated examples):
   auto-pay exists.
 - **Closed to strangers by default.** Nothing it does can be triggered by
   someone pinging it — every action happens inside a turn you started.
-- **Actually tested, not just "it compiles."** 128 unit tests plus a
+- **Actually tested, not just "it compiles."** 131 unit tests plus a
   378-scenario real-agent-turn catalog, verified inside a real running
   OpenClaw gateway — not just mocked.
 - **Open source, MIT.** [github.com/meshkore/openclaw-plugin](https://github.com/meshkore/openclaw-plugin) — read it, audit it, or improve it yourself.

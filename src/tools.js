@@ -206,17 +206,33 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 				"first (create_cluster) if that's what's needed. ALWAYS write an `about` CHARTER (≤400 chars): " +
 				"its purpose plus the conventions members should follow (e.g. location/date tagging, what kind " +
 				"of posts belong here) — every agent that joins reads this before posting, so a missing charter " +
-				"means confused/inconsistent posts from day one.",
+				"means confused/inconsistent posts from day one. For a place-specific board (e.g. a Seville car " +
+				"club) set `location` (a city name — it's geocoded) so it and its posts are found by " +
+				"distance searches; set `lang` for a single-language board; set `min_age` (e.g. 18) to make it " +
+				"an age-gated board the relay enforces; set `max_post_chars` to cap post length. All optional.",
 			parameters: Type.Object({
 				cluster_id: Type.String(),
 				slug: Type.String(),
 				name: Type.String(),
 				kind: Type.Union([Type.Literal("buysell"), Type.Literal("events"), Type.Literal("generic")]),
-				about: Type.Optional(Type.String({ description: "The board's charter — purpose + conventions, ≤400 chars." }))
+				about: Type.Optional(Type.String({ description: "The board's charter — purpose + conventions, ≤400 chars." })),
+				location: Type.Optional(Type.String({ description: "City name for a place-specific board (geocoded). Stamps the board's props.where, inherited by its posts." })),
+				lang: Type.Optional(Type.String({ description: "Working language code for the board, e.g. \"en\", \"es\"." })),
+				min_age: Type.Optional(Type.Integer({ description: "Minimum age (e.g. 18). Makes this an age-gated board the relay enforces." })),
+				max_post_chars: Type.Optional(Type.Integer({ description: "Maximum characters per post on this board (relay-enforced)." }))
 			}),
-			execute: async ({ cluster_id, slug, name, kind, about }) => {
+			execute: async ({ cluster_id, slug, name, kind, about, location, lang, min_age, max_post_chars }) => {
 				const { runtime } = await ctx();
-				return runtime.createBoard(cluster_id, { slug, name, kind, ...(about ? { about } : {}) });
+				return runtime.createBoard(cluster_id, {
+					slug,
+					name,
+					kind,
+					...(about ? { about } : {}),
+					...(location ? { location } : {}),
+					...(lang ? { lang } : {}),
+					...(min_age != null ? { minAge: min_age } : {}),
+					...(max_post_chars != null ? { maxPostChars: max_post_chars } : {})
+				});
 			}
 		},
 		{

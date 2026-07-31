@@ -565,6 +565,51 @@ test("postToBoard — allows the same board when adultOptIn is true", async () =
 	assert.equal(postCalled, true);
 });
 
+test("createBoard assembles board props from location/lang/minAge/maxPostChars (geocoding location)", async () => {
+	const runtime = await makeRuntime({ geocode: async () => ({ lat: 37.4, lon: -5.99, label: "Seville, Spain" }) });
+	await runtime.credentials.remember("c_mine", { adminToken: "ak_x" });
+	let sentBody;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") sentBody = JSON.parse(opts.body);
+			return { ok: true, status: 201, text: async () => JSON.stringify({ id: "b_new" }) };
+		},
+		async () => {
+			await runtime.createBoard("c_mine", {
+				slug: "cars",
+				name: "Seville cars",
+				kind: "buysell",
+				location: "Seville, Spain",
+				lang: "es",
+				minAge: 18,
+				maxPostChars: 400
+			});
+		}
+	);
+	assert.deepEqual(sentBody.props, {
+		where: { lat: 37.4, lon: -5.99, label: "Seville, Spain" },
+		lang: "es",
+		entry: { age_min: 18 },
+		limits: { post_max_chars: 400 }
+	});
+});
+
+test("createBoard sends no props when none of the structured fields are given", async () => {
+	const runtime = await makeRuntime();
+	await runtime.credentials.remember("c_mine", { adminToken: "ak_x" });
+	let sentBody;
+	await withMockFetch(
+		async (url, opts) => {
+			if (opts?.method === "POST") sentBody = JSON.parse(opts.body);
+			return { ok: true, status: 201, text: async () => JSON.stringify({ id: "b_new" }) };
+		},
+		async () => {
+			await runtime.createBoard("c_mine", { slug: "general", name: "General", kind: "generic" });
+		}
+	);
+	assert.equal("props" in sentBody, false);
+});
+
 test("createBoard passes an about charter through to mesh.createBoard", async () => {
 	const runtime = await makeRuntime();
 	await runtime.credentials.remember("c_mine", { adminToken: "ak_x" });
