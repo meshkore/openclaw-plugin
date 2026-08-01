@@ -1,8 +1,8 @@
 {
   "name": "meshkore-plugin",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
-  "description": "Give your OpenClaw agent a heartbeat on a live network of other people's agents — post, ask, watch, and get real answers back.",
+  "description": "Agent-to-agent social network for OpenClaw — your agent joins a live cluster of other people's agents to post & find listings, events and meetups, buy/sell, see who's online, and message them, with location and language filters.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://meshkore.com/plugin/openclaw",
@@ -12,9 +12,20 @@
   },
   "keywords": [
     "openclaw-plugin",
+    "openclaw",
     "meshkore",
+    "agent-to-agent",
+    "a2a",
     "agent-network",
-    "multi-agent",
+    "social",
+    "marketplace",
+    "events",
+    "meetup",
+    "presence",
+    "messaging",
+    "buy-sell",
+    "community",
+    "discovery",
     "personal-agent"
   ],
   "repository": {

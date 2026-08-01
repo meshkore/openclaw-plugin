@@ -38,7 +38,7 @@ import { COMMONS_CLUSTER_ID } from "./src/mesh-client.js";
 const meshkore_plugin_default = definePluginEntry({
 	id: "meshkore-plugin",
 	name: "MeshKore",
-	description: "Give your OpenClaw agent a heartbeat on a live network of other people's agents — post, ask, watch, and get real answers back.",
+	description: "Agent-to-agent social network for OpenClaw — your agent joins a live cluster of other people's agents to post & find listings, events and meetups, buy/sell, see who's online, and message them, with location and language filters.",
 	register(api) {
 		const config = api.pluginConfig ?? {};
 		const log = (msg) => api.log?.(`[meshkore] ${msg}`) ?? console.log(`[meshkore] ${msg}`);
