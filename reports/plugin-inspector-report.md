@@ -76,25 +76,31 @@ _none_
 
 ## Target OpenClaw Compat Records
 
-| Metric                   | Value    |
-| ------------------------ | -------- |
-| Configured path          | -        |
-| Status                   | disabled |
-| Compat registry          | -        |
-| Compat records           | 0        |
-| Compat status counts     | -        |
-| Record ids               | -        |
-| Hook registry            | -        |
-| Hook names               | 0        |
-| API builder              | -        |
-| API registrars           | 0        |
-| Captured registration    | -        |
-| Captured registrars      | 0        |
-| Package metadata         | -        |
-| Plugin SDK exports       | 0        |
-| Manifest types           | -        |
-| Manifest fields          | 0        |
-| Manifest contract fields | 0        |
+| Metric                    | Value                                |
+| ------------------------- | ------------------------------------ |
+| Configured path           | npm:openclaw@2026.7.1-2              |
+| Status                    | ok                                   |
+| Requested version         | latest                               |
+| Resolved version          | 2026.7.1-2                           |
+| Range eligibility version | 2026.7.1                             |
+| Source                    | npm:openclaw                         |
+| NPM dist-tag              | latest                               |
+| Prepared cache            | miss                                 |
+| Compat registry           | -                                    |
+| Compat records            | 0                                    |
+| Compat status counts      | -                                    |
+| Record ids                | -                                    |
+| Hook registry             | dist/hook-types-DQ9eTy2x.d.ts        |
+| Hook names                | 40                                   |
+| API builder               | dist/types-DaHgOqFX.d.ts             |
+| API registrars            | 55                                   |
+| Captured registration     | dist/types-DaHgOqFX.d.ts             |
+| Captured registrars       | 55                                   |
+| Package metadata          | package.json                         |
+| Plugin SDK exports        | 324                                  |
+| Manifest types            | dist/manifest-registry-CIZD-9A4.d.ts |
+| Manifest fields           | 66                                   |
+| Manifest contract fields  | 22                                   |
 
 ## Warnings
 
@@ -124,9 +130,12 @@ _none_
 
 ## Raw Logs
 
-| Fixture         | Code                        | Level | Message                                                                               | Evidence                                                                                                                                                                      | Compat record |
-| --------------- | --------------------------- | ----- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| meshkore-plugin | seam-inventory              | log   | observed 1 hooks, 4 registrations, and 1 manifest contracts                           | hook:heartbeat_prompt_contribution, registration:definePluginEntry, registration:registerCli, registration:registerService, registration:registerTool, manifestContract:tools | -             |
-| meshkore-plugin | package-metadata            | log   | selected package metadata for plugin contract checks                                  | package.json, meshkore-plugin, version:0.5.4                                                                                                                                  | -             |
-| meshkore-plugin | declarative-contracts       | log   | fixture declares manifest contracts that can be checked without executing plugin code | tools                                                                                                                                                                         | -             |
-| openclaw        | target-openclaw-unavailable | log   | target OpenClaw checkout was not available, so compat record coverage was not checked | not configured                                                                                                                                                                | -             |
+| Fixture         | Code                    | Level | Message                                                                               | Evidence                                                                                                                                                                      | Compat record |
+| --------------- | ----------------------- | ----- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| meshkore-plugin | seam-inventory          | log   | observed 1 hooks, 4 registrations, and 1 manifest contracts                           | hook:heartbeat_prompt_contribution, registration:definePluginEntry, registration:registerCli, registration:registerService, registration:registerTool, manifestContract:tools | -             |
+| meshkore-plugin | hook-names-present      | log   | all observed hooks exist in the target OpenClaw hook registry                         | heartbeat_prompt_contribution                                                                                                                                                 | -             |
+| meshkore-plugin | api-registrars-present  | log   | all observed api.register* calls exist in the target OpenClaw plugin API builder      | registerCli, registerService, registerTool                                                                                                                                    | -             |
+| meshkore-plugin | sdk-exports-present     | log   | all observed plugin SDK imports exist in target OpenClaw package exports              | openclaw/plugin-sdk/plugin-entry                                                                                                                                              | -             |
+| meshkore-plugin | manifest-fields-checked | log   | plugin manifest fields were compared with target OpenClaw manifest types              | openclaw.plugin.json                                                                                                                                                          | -             |
+| meshkore-plugin | package-metadata        | log   | selected package metadata for plugin contract checks                                  | package.json, meshkore-plugin, version:0.5.5                                                                                                                                  | -             |
+| meshkore-plugin | declarative-contracts   | log   | fixture declares manifest contracts that can be checked without executing plugin code | tools                                                                                                                                                                         | -             |

@@ -96,6 +96,39 @@ test("contactAgent — direct endpoint, success", async () => {
 	}
 });
 
+test("contactAgent — copies free-text `query` into `prompt` (real agents branch on prompt)", async () => {
+	// Verified live 2026-08-04: MeshKore partner agents (roomrover, aerocast,
+	// ticketlumen, ebay-finder) read `body.prompt`, ignore `query`, and 400
+	// with `missing_fields` otherwise. contactAgent must send both.
+	let sentBody;
+	const restore = mockFetch(async (url, opts) => {
+		sentBody = JSON.parse(opts.body);
+		return { ok: true, status: 200, text: async () => JSON.stringify({ results: [] }) };
+	});
+	try {
+		await contactAgent({ endpoint: "https://agent.example.com", body: { query: "flight from Barcelona to Berlin" } });
+		assert.equal(sentBody.prompt, "flight from Barcelona to Berlin", "query must be copied into prompt");
+		assert.equal(sentBody.query, "flight from Barcelona to Berlin", "query is still sent for agents expecting that shape");
+	} finally {
+		restore();
+	}
+});
+
+test("contactAgent — never overwrites a `prompt` the caller already set", async () => {
+	let sentBody;
+	const restore = mockFetch(async (url, opts) => {
+		sentBody = JSON.parse(opts.body);
+		return { ok: true, status: 200, text: async () => JSON.stringify({ results: [] }) };
+	});
+	try {
+		await contactAgent({ endpoint: "https://agent.example.com", body: { prompt: "explicit prompt", query: "different query" } });
+		assert.equal(sentBody.prompt, "explicit prompt", "an existing prompt must be left untouched");
+		assert.equal(sentBody.query, "different query");
+	} finally {
+		restore();
+	}
+});
+
 test("contactAgent — 402 returns the challenge, never auto-pays", async () => {
 	const restore = mockFetch(async () => ({
 		ok: false,

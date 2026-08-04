@@ -104,12 +104,30 @@ export function sendFeedback({ requester, agentId, kind = "message_through", que
 }
 
 /**
+ * The free-text field name real agents read is `prompt`, not `query`.
+ *
+ * Verified live 2026-08-04 against all four MeshKore partner agents
+ * (roomrover, aerocast, ticketlumen, ebay-finder): each one branches on
+ * `body.prompt` to run its plain-language path, and ignores `query`
+ * entirely — so `{query: "..."}` came back as `400 missing_fields` every
+ * time, no matter how good the request was. Both keys are sent so agents
+ * expecting either shape work; `prompt` is what actually gets used.
+ */
+function withFreeText(body) {
+	if (body && typeof body.query === "string" && body.prompt === undefined) {
+		return { ...body, prompt: body.query };
+	}
+	return body;
+}
+
+/**
  * Resolve an endpoint (direct URL, or agent_id looked up via the Oracle),
  * then POST a JSON body to it. Never holds or auto-pays a 402 challenge —
  * that comes back in the result for the caller (the plugin's tool layer,
  * ultimately the user) to decide on.
  */
 export async function contactAgent({ agentId, endpoint, path = "/v1/search", body = {} }) {
+	body = withFreeText(body);
 	let targetEndpoint = endpoint;
 	if (!targetEndpoint) {
 		if (!agentId) throw new Error("contactAgent requires agentId or endpoint");
