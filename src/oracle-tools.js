@@ -176,6 +176,14 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 				if (Array.isArray(missing) && missing.length) {
 					return { ok: false, needs_info: true, missing_fields: missing, quote_id };
 				}
+				// Not every agent names its missing fields in an array. foodlens
+				// answers `{error, detail: 'json body missing "image_base64"'}` —
+				// a real, actionable complaint that used to be swallowed as a raw
+				// failure. Pass the sentence through without inventing field names
+				// from it, so the LLM can ask for the right thing.
+				if (result.status === 400 && typeof result.detail?.detail === "string") {
+					return { ok: false, needs_info: true, hint: result.detail.detail, quote_id };
+				}
 				if (result.ok && handle) {
 					sendFeedback({ requester: handle, agentId }).catch(() => {});
 				}

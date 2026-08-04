@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { searchAgents, getReputation, sendFeedback, contactAgent, ORACLE_URL } from "../src/oracle-client.js";
+import { searchAgents, getReputation, sendFeedback, contactAgent, clearAgentCardCache, ORACLE_URL } from "../src/oracle-client.js";
 
 function mockFetch(handler) {
 	const originalFetch = globalThis.fetch;
@@ -146,11 +146,10 @@ test("contactAgent — 402 returns the challenge, never auto-pays", async () => 
 });
 
 test("contactAgent — resolves agent_id via the Oracle when no endpoint given", async () => {
-	let calls = 0;
+	const seen = [];
 	const restore = mockFetch(async (url) => {
-		calls += 1;
-		if (calls === 1) {
-			assert.equal(url, `${ORACLE_URL}/v1/search`);
+		seen.push(url);
+		if (url === `${ORACLE_URL}/v1/search`) {
 			return {
 				ok: true,
 				status: 200,
@@ -160,13 +159,20 @@ test("contactAgent — resolves agent_id via the Oracle when no endpoint given",
 					})
 			};
 		}
-		assert.equal(url, "https://food-vision.example.com/v1/search");
+		// The card lookup on the way to the skill call: no card here, so the
+		// default path must still be used.
+		if (url.endsWith("/.well-known/agent.json")) return { ok: false, status: 404, text: async () => "" };
 		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
 	});
 	try {
+		clearAgentCardCache();
 		const r = await contactAgent({ agentId: "food-vision" });
 		assert.equal(r.ok, true);
-		assert.equal(calls, 2);
+		assert.deepEqual(seen, [
+			`${ORACLE_URL}/v1/search`,
+			"https://food-vision.example.com/.well-known/agent.json",
+			"https://food-vision.example.com/v1/search"
+		]);
 	} finally {
 		restore();
 	}
@@ -177,23 +183,139 @@ test("contactAgent — resolves a top-level `endpoint` field, not just nested ag
 	// search result for some agents (e.g. roomrover), not nested under
 	// agent_card at all — the retired skill's CLI type only checked the
 	// nested shape, which would have failed silently against real data.
-	let calls = 0;
+	let skillUrl;
 	const restore = mockFetch(async (url) => {
-		calls += 1;
-		if (calls === 1) {
+		if (url === `${ORACLE_URL}/v1/search`) {
 			return {
 				ok: true,
 				status: 200,
 				text: async () => JSON.stringify({ agents: [{ agent_id: "roomrover", endpoint: "https://roomrover.rjj.workers.dev" }] })
 			};
 		}
-		assert.equal(url, "https://roomrover.rjj.workers.dev/v1/search");
+		if (url.endsWith("/.well-known/agent.json")) return { ok: false, status: 404, text: async () => "" };
+		skillUrl = url;
 		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
 	});
 	try {
+		clearAgentCardCache();
 		const r = await contactAgent({ agentId: "roomrover" });
 		assert.equal(r.ok, true);
-		assert.equal(calls, 2);
+		assert.equal(skillUrl, "https://roomrover.rjj.workers.dev/v1/search");
+	} finally {
+		restore();
+	}
+});
+
+test("contactAgent — takes the skill path off the agent card when the caller pins none", async () => {
+	// The bug this closes: the Oracle search result carries a bare origin and
+	// an EMPTY agent_card (verified live 2026-08-04), so every call landed on
+	// the /v1/search default. Agents whose skill lives elsewhere — foodlens
+	// (/v1/analyze), lucid (/v1/text-to-image) — were discoverable by the
+	// Oracle and permanently uncallable: 404, every time.
+	let skillUrl;
+	const restore = mockFetch(async (url) => {
+		if (url === `${ORACLE_URL}/v1/search`) {
+			return {
+				ok: true,
+				status: 200,
+				text: async () => JSON.stringify({ agents: [{ agent_id: "foodlens", endpoint: "https://foodlens.example.com" }] })
+			};
+		}
+		if (url.endsWith("/.well-known/agent.json")) {
+			return {
+				ok: true,
+				status: 200,
+				text: async () => JSON.stringify({ contact: { http: "https://food-vision.example.com/v1/analyze" } })
+			};
+		}
+		skillUrl = url;
+		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+	});
+	try {
+		clearAgentCardCache();
+		await contactAgent({ agentId: "foodlens" });
+		// The PATH comes from the card; the HOST never does. foodlens really
+		// advertises food-vision.agent.meshkore.com, a hostname with no DNS
+		// record — trusting it would swap a 404 for a resolution failure.
+		assert.equal(skillUrl, "https://foodlens.example.com/v1/analyze");
+	} finally {
+		restore();
+	}
+});
+
+test("contactAgent — an explicit path always beats the card", async () => {
+	let skillUrl, cardFetched = false;
+	const restore = mockFetch(async (url) => {
+		if (url.endsWith("/.well-known/agent.json")) {
+			cardFetched = true;
+			return { ok: true, status: 200, text: async () => JSON.stringify({ contact: { http: "https://a.example.com/v1/from-card" } }) };
+		}
+		skillUrl = url;
+		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+	});
+	try {
+		clearAgentCardCache();
+		await contactAgent({ endpoint: "https://a.example.com", path: "/v1/pinned" });
+		assert.equal(skillUrl, "https://a.example.com/v1/pinned");
+		assert.equal(cardFetched, false, "a pinned path must not cost a card lookup");
+	} finally {
+		restore();
+	}
+});
+
+test("contactAgent — an endpoint that already carries a path costs no card lookup", async () => {
+	let cardFetched = false, skillUrl;
+	const restore = mockFetch(async (url) => {
+		if (url.endsWith("/.well-known/agent.json")) {
+			cardFetched = true;
+			return { ok: true, status: 200, text: async () => JSON.stringify({ contact: { http: "https://b.example.com/v1/other" } }) };
+		}
+		skillUrl = url;
+		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+	});
+	try {
+		clearAgentCardCache();
+		await contactAgent({ endpoint: "https://b.example.com/v1/already-here" });
+		assert.equal(skillUrl, "https://b.example.com/v1/already-here");
+		assert.equal(cardFetched, false);
+	} finally {
+		restore();
+	}
+});
+
+test("contactAgent — an unreachable card never breaks a reachable agent", async () => {
+	// Path resolution is an optimisation. If the card 500s, times out, or comes
+	// back as garbage, the call must still go out on the default path.
+	let skillUrl;
+	const restore = mockFetch(async (url) => {
+		if (url.endsWith("/.well-known/agent.json")) throw new Error("network down");
+		skillUrl = url;
+		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+	});
+	try {
+		clearAgentCardCache();
+		const r = await contactAgent({ endpoint: "https://c.example.com" });
+		assert.equal(r.ok, true);
+		assert.equal(skillUrl, "https://c.example.com/v1/search");
+	} finally {
+		restore();
+	}
+});
+
+test("contactAgent — the card is fetched once per origin, not once per call", async () => {
+	let cardFetches = 0;
+	const restore = mockFetch(async (url) => {
+		if (url.endsWith("/.well-known/agent.json")) {
+			cardFetches += 1;
+			return { ok: true, status: 200, text: async () => JSON.stringify({ contact: { http: "https://d.example.com/v1/analyze" } }) };
+		}
+		return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+	});
+	try {
+		clearAgentCardCache();
+		await contactAgent({ endpoint: "https://d.example.com" });
+		await contactAgent({ endpoint: "https://d.example.com" });
+		assert.equal(cardFetches, 1);
 	} finally {
 		restore();
 	}

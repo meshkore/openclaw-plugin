@@ -182,6 +182,38 @@ test("confirm_service — a 402 surfaces the challenge and never fires feedback"
 	}
 });
 
+test("confirm_service — a 400 that explains itself in prose still becomes needs_info", async () => {
+	// Not every agent names its missing fields in an array. foodlens answers
+	// `{error:"bad_request", detail:'json body missing "image_base64"'}` — real
+	// and actionable, but it used to fall through as a raw failure the model
+	// could do nothing with. Verified live 2026-08-04 once the plugin could
+	// reach that agent's path at all.
+	const restore = mockFetch(async (url) => {
+		if (url === `${ORACLE_URL}/v1/search`) {
+			return jsonResponse(200, {
+				agents: [{ agent_id: "foodlens", description: "Food analysis", oracle_score: 0.9, agent_card: { contact: { http: "https://foodlens.example.com" } } }]
+			});
+		}
+		if (String(url).endsWith("/.well-known/agent.json")) return jsonResponse(404, {});
+		if (String(url).startsWith(`${ORACLE_URL}/v1/reputation/`)) return jsonResponse(200, { score: 0, message_through_count: 0 });
+		if (url === `${ORACLE_URL}/v1/feedback`) throw new Error("feedback must not fire on a 400");
+		return jsonResponse(400, { error: "bad_request", detail: 'json body missing "image_base64"' });
+	});
+	try {
+		const tools = createOracleTools(getState);
+		const request = tools.find((t) => t.name === "request_service");
+		const confirm = tools.find((t) => t.name === "confirm_service");
+		const quote = await request.execute({ request: "what is in this food photo" });
+		const result = await confirm.execute({ quote_id: quote.quote_id });
+		assert.equal(result.needs_info, true);
+		assert.match(result.hint, /image_base64/);
+		// It must NOT invent field names out of a sentence.
+		assert.equal(result.missing_fields, undefined);
+	} finally {
+		restore();
+	}
+});
+
 test("confirm_service — an invalid quote_id fails clearly instead of throwing an opaque error", async () => {
 	const tools = createOracleTools(getState);
 	const confirm = tools.find((t) => t.name === "confirm_service");

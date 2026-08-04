@@ -120,13 +120,80 @@ function withFreeText(body) {
 	return body;
 }
 
+/** Where search-domain agents serve, and the fallback when nothing better is known. */
+const DEFAULT_SKILL_PATH = "/v1/search";
+
+/** Agent card lookups are per-origin and stable; one fetch per origin is plenty. */
+const cardPathCache = new Map();
+
+/**
+ * Forget cached skill paths. OpenClaw hosts this plugin in a long-lived
+ * process, so an agent that redeploys its card would otherwise keep being
+ * called on its old path until restart. Also what keeps tests independent.
+ */
+export function clearAgentCardCache() {
+	cardPathCache.clear();
+}
+
+/**
+ * The skill path an agent actually serves, read off its own A2A card.
+ *
+ * Why this exists: the Oracle's search result carries a bare origin and no
+ * card (verified 2026-08-04: `agent_card` comes back empty), so without this
+ * every request landed on the `/v1/search` default. Search agents serve that
+ * path and worked; agents whose skill lives elsewhere were discoverable and
+ * permanently uncallable — foodlens (`/v1/analyze`) and lucid
+ * (`/v1/text-to-image`) both 404'd on every single confirm_service.
+ *
+ * Only the PATH is taken from the card, never the host. The card's
+ * `contact.http` is self-reported and can be wrong: foodlens advertises
+ * `https://food-vision.agent.meshkore.com/v1/analyze`, a hostname with no DNS
+ * record at all, while the origin the Oracle verified serves the same path
+ * correctly. Trusting the card's host would trade a 404 for a DNS failure.
+ *
+ * Best-effort by design — any failure falls back to the default path rather
+ * than turning a reachable agent into an error.
+ */
+async function skillPathFromCard(endpoint) {
+	if (cardPathCache.has(endpoint)) return cardPathCache.get(endpoint);
+	let resolved = null;
+	const ctrl = new AbortController();
+	// Deliberately shorter than a skill call: this is an optimisation, and it
+	// must never dominate the budget of the request it is trying to improve.
+	const timer = setTimeout(() => ctrl.abort(), 5_000);
+	try {
+		const res = await fetch(joinUrl(endpoint, "/.well-known/agent.json"), {
+			headers: { "user-agent": USER_AGENT },
+			signal: ctrl.signal
+		});
+		if (res.ok) {
+			const card = JSON.parse(await res.text());
+			const advertised = card?.contact?.http;
+			if (typeof advertised === "string") {
+				const { pathname } = new URL(advertised);
+				if (pathname && pathname !== "/") resolved = pathname;
+			}
+		}
+	} catch {
+		// No card, unreachable, malformed, or a relative contact.http — the
+		// default path is still the best guess available.
+	} finally {
+		clearTimeout(timer);
+	}
+	cardPathCache.set(endpoint, resolved);
+	return resolved;
+}
+
 /**
  * Resolve an endpoint (direct URL, or agent_id looked up via the Oracle),
  * then POST a JSON body to it. Never holds or auto-pays a 402 challenge —
  * that comes back in the result for the caller (the plugin's tool layer,
  * ultimately the user) to decide on.
+ *
+ * `path` is optional: when the caller does not pin one, it is read off the
+ * agent's own card and only then falls back to `/v1/search`.
  */
-export async function contactAgent({ agentId, endpoint, path = "/v1/search", body = {} }) {
+export async function contactAgent({ agentId, endpoint, path, body = {} }) {
 	body = withFreeText(body);
 	let targetEndpoint = endpoint;
 	if (!targetEndpoint) {
@@ -145,7 +212,14 @@ export async function contactAgent({ agentId, endpoint, path = "/v1/search", bod
 		}
 	}
 
-	const url = joinUrl(targetEndpoint, path);
+	// An endpoint that already carries a path wins outright, so only look up
+	// the card when there is genuinely nothing to go on — no wasted fetch.
+	let targetPath = path;
+	if (targetPath === undefined && !endpointHasPath(targetEndpoint)) {
+		targetPath = (await skillPathFromCard(targetEndpoint)) ?? DEFAULT_SKILL_PATH;
+	}
+
+	const url = joinUrl(targetEndpoint, targetPath);
 	const ctrl = new AbortController();
 	const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
 	try {
@@ -179,14 +253,18 @@ export async function contactAgent({ agentId, endpoint, path = "/v1/search", bod
 	}
 }
 
-function joinUrl(endpoint, path) {
+/** An endpoint that already names a path needs no path resolution at all. */
+function endpointHasPath(endpoint) {
 	try {
-		const u = new URL(endpoint);
-		const hasMeaningfulPath = u.pathname !== "" && u.pathname !== "/";
-		if (hasMeaningfulPath) return endpoint.replace(/\/+$/, "");
+		const { pathname } = new URL(endpoint);
+		return pathname !== "" && pathname !== "/";
 	} catch {
-		// fall through — caller errors on the bad URL during fetch
+		return false;
 	}
+}
+
+function joinUrl(endpoint, path = DEFAULT_SKILL_PATH) {
+	if (endpointHasPath(endpoint)) return endpoint.replace(/\/+$/, "");
 	const cleanEnd = endpoint.replace(/\/+$/, "");
 	return path.startsWith("/") ? `${cleanEnd}${path}` : `${cleanEnd}/${path}`;
 }
