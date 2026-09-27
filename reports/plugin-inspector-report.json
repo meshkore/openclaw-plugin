@@ -609,14 +609,21 @@
       "why": "local OpenClaw plugin root",
       "status": "ok",
       "hooks": [
+        "before_tool_call",
         "heartbeat_prompt_contribution"
       ],
       "hookDetails": [
         {
+          "name": "before_tool_call",
+          "file": "index.js",
+          "line": 132,
+          "ref": "index.js:132"
+        },
+        {
           "name": "heartbeat_prompt_contribution",
           "file": "index.js",
-          "line": 134,
-          "ref": "index.js:134"
+          "line": 143,
+          "ref": "index.js:143"
         }
       ],
       "registrations": [
@@ -629,26 +636,26 @@
         {
           "name": "definePluginEntry",
           "file": "index.js",
-          "line": 38,
-          "ref": "index.js:38"
+          "line": 39,
+          "ref": "index.js:39"
         },
         {
           "name": "registerCli",
           "file": "index.js",
-          "line": 141,
-          "ref": "index.js:141"
+          "line": 150,
+          "ref": "index.js:150"
         },
         {
           "name": "registerService",
           "file": "index.js",
-          "line": 168,
-          "ref": "index.js:168"
+          "line": 177,
+          "ref": "index.js:177"
         },
         {
           "name": "registerTool",
           "file": "index.js",
-          "line": 120,
-          "ref": "index.js:120"
+          "line": 121,
+          "ref": "index.js:121"
         }
       ],
       "manifestContracts": [
@@ -662,6 +669,7 @@
         "scenarios/anti-interference.js",
         "scenarios/generate.js",
         "scenarios/run.js",
+        "src/approvals.js",
         "src/commands.js",
         "src/credentials.js",
         "src/geocode.js",
@@ -708,7 +716,7 @@
       "package": {
         "path": "package.json",
         "name": "meshkore-plugin",
-        "version": "0.5.7",
+        "version": "0.5.8",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -762,7 +770,7 @@
         {
           "path": "package.json",
           "name": "meshkore-plugin",
-          "version": "0.5.7",
+          "version": "0.5.8",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -874,8 +882,9 @@
       "fixture": "meshkore-plugin",
       "code": "seam-inventory",
       "level": "log",
-      "message": "observed 1 hooks, 4 registrations, and 1 manifest contracts",
+      "message": "observed 2 hooks, 4 registrations, and 1 manifest contracts",
       "evidence": [
+        "hook:before_tool_call",
         "hook:heartbeat_prompt_contribution",
         "registration:definePluginEntry",
         "registration:registerCli",
@@ -890,6 +899,7 @@
       "level": "log",
       "message": "all observed hooks exist in the target OpenClaw hook registry",
       "evidence": [
+        "before_tool_call",
         "heartbeat_prompt_contribution"
       ]
     },
@@ -921,7 +931,7 @@
       "evidence": [
         "package.json",
         "meshkore-plugin",
-        "version:0.5.7"
+        "version:0.5.8"
       ]
     },
     {

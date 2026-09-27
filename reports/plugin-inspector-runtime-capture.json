@@ -9,8 +9,8 @@
     "capturedCount": 2,
     "skippedCount": 0,
     "failedCount": 0,
-    "registrationCount": 24,
-    "hookCount": 1
+    "registrationCount": 23,
+    "hookCount": 2
   },
   "results": [
     {
@@ -232,24 +232,6 @@
                 "name",
                 "parameters"
               ],
-              "name": "reveal_admin_token"
-            }
-          ]
-        },
-        {
-          "kind": "registration",
-          "name": "registerTool",
-          "known": true,
-          "arguments": [
-            {
-              "type": "object",
-              "keys": [
-                "description",
-                "execute",
-                "label",
-                "name",
-                "parameters"
-              ],
               "name": "delete_cluster"
             }
           ]
@@ -377,6 +359,20 @@
                 "parameters"
               ],
               "name": "confirm_service"
+            }
+          ]
+        },
+        {
+          "kind": "hook",
+          "name": "before_tool_call",
+          "handlerType": "function",
+          "arguments": [
+            {
+              "type": "string",
+              "value": "before_tool_call"
+            },
+            {
+              "type": "function"
             }
           ]
         },

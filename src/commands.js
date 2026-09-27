@@ -50,6 +50,16 @@ export function registerMeshCli(program, { runtime, memory }) {
 			console.log(`join token (keep it out of public channels): ${token}`);
 		});
 
+	// Terminal-only on purpose: the admin token deletes the cluster, so it is
+	// never offered as a model tool — it must not enter an LLM's context.
+	mesh
+		.command("admin-token <cluster_id>")
+		.description("Show the admin token of a cluster you created — the only key that can delete it; back it up privately")
+		.action((clusterId) => {
+			const { admin_token } = runtime.revealAdminToken(clusterId);
+			console.log(`admin token (never share it; anyone holding it can delete the cluster): ${admin_token}`);
+		});
+
 	mesh
 		.command("delete <cluster_id>")
 		.description("Permanently delete a cluster this agent created — IRREVERSIBLE")

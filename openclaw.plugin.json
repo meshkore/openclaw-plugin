@@ -21,7 +21,6 @@
       "create_board",
       "create_cluster",
       "get_cluster_invite",
-      "reveal_admin_token",
       "delete_cluster",
       "discover_clusters",
       "watch_interest",
@@ -105,7 +104,7 @@
       "auto_publish": {
         "type": "boolean",
         "default": false,
-        "description": "If false (default), the plugin always asks before posting to a Board or DM-ing on the user's behalf."
+        "description": "If false (default), OpenClaw asks you to approve every post, DM, broadcast, delete and cluster/board creation before it runs (a native approval prompt, enforced in code). Deleting a cluster and letting a provider act for you (e.g. book) always ask, even when true."
       },
       "paused": {
         "type": "boolean",

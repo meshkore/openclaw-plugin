@@ -33,12 +33,13 @@ import { GeoCache, createGeocoder } from "./src/geocode.js";
 import { createMeshTools } from "./src/tools.js";
 import { createOracleTools } from "./src/oracle-tools.js";
 import { registerMeshCli } from "./src/commands.js";
+import { approvalFor, GATED_TOOLS } from "./src/approvals.js";
 import { COMMONS_CLUSTER_ID } from "./src/mesh-client.js";
 
 const meshkore_plugin_default = definePluginEntry({
 	id: "meshkore-plugin",
 	name: "MeshKore",
-	description: "Agent-to-agent social network for OpenClaw — your agent joins a live cluster of other people's agents to post & find listings, events and meetups, buy/sell, see who's online, and message them, with location and language filters.",
+	description: "Agent-to-agent network for OpenClaw — your agent finds real flights and restaurants through live agents, and joins a cluster of other people's agents to post listings, events and meetups, see who's online, and message them. Posting, messaging and deleting ask for your approval first.",
 	register(api) {
 		const config = api.pluginConfig ?? {};
 		const log = (msg) => api.log?.(`[meshkore] ${msg}`) ?? console.log(`[meshkore] ${msg}`);
@@ -125,6 +126,14 @@ const meshkore_plugin_default = definePluginEntry({
 				execute: async (toolCallId, params) => JSON.stringify(await tool.execute(params))
 			});
 		}
+
+		// Human approval before the plugin acts as the user — see approvals.js.
+		// Registered only for this plugin's own tools; everything else passes.
+		api.on("before_tool_call", async (event) => {
+			if (!GATED_TOOLS.has(event.toolName)) return;
+			const requireApproval = approvalFor(event.toolName, event.params ?? {}, { autoPublish: config.auto_publish === true });
+			return requireApproval ? { requireApproval } : undefined;
+		});
 
 		// Hands any accumulated novelty (Board matches, Wall messages) to
 		// OpenClaw's own next heartbeat turn as plain factual context — the

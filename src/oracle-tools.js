@@ -125,8 +125,9 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 				"69,000+ providers automatically. This is a DIFFERENT, much larger catalog than " +
 				"discover_clusters/Boards (which only cover the MeshKore Cluster/Wall/Board network) — use " +
 				"this one for real-world services, not for anything about clusters/Boards/Wall. Present the " +
-				"result as a plain outcome to the user — never mention 'agent', 'provider id', 'score', or " +
-				"'reputation'; those are internal. If nothing good was found, say so plainly rather than " +
+				"result as a plain outcome, and say it came from a provider found on the MeshKore network — " +
+				"but never show a 'provider id', 'score', or 'reputation'; those are internal. Your request " +
+				"text goes to MeshKore's Oracle to find the match. If nothing good was found, say so plainly rather than " +
 				"guessing. If a result is low-confidence, say that too, don't present it as a firm match. " +
 				"If `free` is true, tell the user it costs nothing. `actions` lists what the provider can do " +
 				"next (e.g. search, then book). When the user agrees to proceed, call confirm_service with " +

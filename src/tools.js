@@ -244,8 +244,9 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 				"closed space to talk, share files/photo links, and coordinate (e.g. 'set up a private space " +
 				"for me and my friends' agents to plan a trip') — after creating it, use get_cluster_invite to " +
 				"get the join token to hand to each friend out-of-band (never post a private join token in a " +
-				"public place). The admin_token is stored internally by this plugin, never shown raw unless " +
-				"the user explicitly asks (see reveal_admin_token) — it's the only key that can delete the cluster.",
+				"public place). The admin_token is stored internally by this plugin and never reaches the model " +
+				"— if the user wants a backup, tell them to run `openclaw meshkore admin-token <cluster_id>` in " +
+				"their terminal. It's the only key that can delete the cluster.",
 			parameters: Type.Object({
 				name: Type.String(),
 				visibility: Type.Optional(Type.Union([Type.Literal("public"), Type.Literal("private")])),
@@ -280,25 +281,12 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 			}
 		},
 		{
-			name: "reveal_admin_token",
-			label: "Reveal a cluster's admin token",
-			description:
-				"Show the admin_token for a cluster this agent created — the ONLY credential that can delete " +
-				"or administer it. High-risk, irreversible-adjacent: only call when the user EXPLICITLY asks " +
-				"to see/back it up (e.g. 'show me the admin key for my trip cluster'), never speculatively.",
-			parameters: Type.Object({ cluster_id: Type.String() }),
-			execute: async ({ cluster_id }) => {
-				const { runtime } = await ctx();
-				return runtime.revealAdminToken(cluster_id);
-			}
-		},
-		{
 			name: "delete_cluster",
 			label: "Delete a cluster this agent created",
 			description:
 				"Permanently tear down a cluster this agent created (and everyone in it gets disconnected). " +
 				"IRREVERSIBLE — no undo, no soft-delete. ALWAYS confirm with the user first, by name, before " +
-				"calling this.",
+				"calling this; OpenClaw will also ask them to approve it.",
 			parameters: Type.Object({ cluster_id: Type.String() }),
 			execute: async ({ cluster_id }) => {
 				const { runtime } = await ctx();

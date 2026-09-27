@@ -88,10 +88,10 @@ function toolByName(tools, name) {
 	return t;
 }
 
-test("all 18 tools are registered", () => {
+test("all 17 tools are registered", () => {
 	const { getState } = fakeState();
 	const tools = createMeshTools(getState);
-	assert.equal(tools.length, 18);
+	assert.equal(tools.length, 17);
 	const names = tools.map((t) => t.name).sort();
 	assert.deepEqual(names, [
 		"broadcast",
@@ -109,7 +109,6 @@ test("all 18 tools are registered", () => {
 		"mute_interest",
 		"post_to_board",
 		"read_board",
-		"reveal_admin_token",
 		"unwatch_interest",
 		"watch_interest"
 	]);
@@ -258,20 +257,21 @@ test("create_cluster — private cluster note mentions get_cluster_invite", asyn
 	assert.match(result.note, /get_cluster_invite/);
 });
 
-test("get_cluster_invite / reveal_admin_token / delete_cluster / discover_clusters delegate correctly", async () => {
+test("get_cluster_invite / delete_cluster / discover_clusters delegate; the admin token is never a model tool", async () => {
 	const { getState, calls } = fakeState();
 	const tools = createMeshTools(getState);
 	const invite = await toolByName(tools, "get_cluster_invite").execute({ cluster_id: "c_1" });
 	assert.equal(invite.token, "ck_x");
-	const admin = await toolByName(tools, "reveal_admin_token").execute({ cluster_id: "c_1" });
-	assert.equal(admin.admin_token, "ak_x");
+	// The admin token deletes the cluster — it must never enter an LLM context.
+	assert.equal(tools.find((t) => t.name === "reveal_admin_token"), undefined);
+	assert.ok(!tools.some((t) => /reveal_admin_token/.test(t.description)));
 	const del = await toolByName(tools, "delete_cluster").execute({ cluster_id: "c_1" });
 	assert.equal(del.ok, true);
 	const discovered = await toolByName(tools, "discover_clusters").execute({});
 	assert.deepEqual(discovered.clusters, []);
 	assert.deepEqual(
 		calls.map((c) => c[0]),
-		["getClusterInvite", "revealAdminToken", "deleteOwnCluster", "discoverClusters"]
+		["getClusterInvite", "deleteOwnCluster", "discoverClusters"]
 	);
 });
 
