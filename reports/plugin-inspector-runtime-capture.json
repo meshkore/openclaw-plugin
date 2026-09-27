@@ -430,11 +430,7 @@
             }
           ]
         }
-      ],
-      "processOutput": {
-        "stdout": "[meshkore] ready — handle=openclaw-b54de5bd\n",
-        "stderr": ""
-      }
+      ]
     },
     {
       "fixture": "meshkore-plugin",

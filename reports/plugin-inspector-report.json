@@ -571,13 +571,13 @@
       "webSearchProviders",
       "workerProviders"
     ],
-    "requestedVersion": "latest",
+    "requestedVersion": "2026.9.6",
     "eligibilityVersion": "2026.9.6",
     "source": {
       "type": "npm",
       "package": "openclaw",
       "registry": "https://registry.npmjs.org",
-      "distTag": "latest",
+      "distTag": null,
       "tarball": "https://registry.npmjs.org/openclaw/-/openclaw-2026.9.6.tgz",
       "integrity": "sha512-Ie0kyQSCVfFqixsgVg39vevUDq01Ch5u3+7Yu5Y3qARczmdAe+lzp8bVnO9925rHiW/+CFp70zfORCyPmCH31g==",
       "shasum": "fc64ad772b885b2c923e373acf27fcd4347e84f4",
@@ -587,7 +587,7 @@
       }
     },
     "cache": {
-      "hit": false,
+      "hit": true,
       "key": "2026.9.6-b7e084997e52"
     }
   },
@@ -687,7 +687,6 @@
             "configSchema",
             "contracts",
             "enabledByDefault",
-            "icon",
             "id",
             "name",
             "skills"
@@ -709,7 +708,7 @@
       "package": {
         "path": "package.json",
         "name": "meshkore-plugin",
-        "version": "0.5.6",
+        "version": "0.5.7",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -721,6 +720,7 @@
             "openclaw.plugin.json",
             "src",
             "skills",
+            "assets",
             "LICENSE",
             "README.md"
           ],
@@ -762,7 +762,7 @@
         {
           "path": "package.json",
           "name": "meshkore-plugin",
-          "version": "0.5.6",
+          "version": "0.5.7",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -774,6 +774,7 @@
               "openclaw.plugin.json",
               "src",
               "skills",
+              "assets",
               "LICENSE",
               "README.md"
             ],
@@ -920,7 +921,7 @@
       "evidence": [
         "package.json",
         "meshkore-plugin",
-        "version:0.5.6"
+        "version:0.5.7"
       ]
     },
     {

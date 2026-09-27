@@ -80,12 +80,12 @@ _none_
 | ------------------------- | ---------------------------------------- |
 | Configured path           | npm:openclaw@2026.9.6                    |
 | Status                    | ok                                       |
-| Requested version         | latest                                   |
+| Requested version         | 2026.9.6                                 |
 | Resolved version          | 2026.9.6                                 |
 | Range eligibility version | 2026.9.6                                 |
 | Source                    | npm:openclaw                             |
-| NPM dist-tag              | latest                                   |
-| Prepared cache            | miss                                     |
+| NPM dist-tag              | -                                        |
+| Prepared cache            | hit                                      |
 | Compat registry           | -                                        |
 | Compat records            | 0                                        |
 | Compat status counts      | -                                        |
@@ -136,5 +136,5 @@ _none_
 | meshkore-plugin | hook-names-present     | log   | all observed hooks exist in the target OpenClaw hook registry                         | heartbeat_prompt_contribution                                                                                                                                                 | -             |
 | meshkore-plugin | api-registrars-present | log   | all observed api.register* calls exist in the target OpenClaw plugin API builder      | registerCli, registerService, registerTool                                                                                                                                    | -             |
 | meshkore-plugin | sdk-exports-present    | log   | all observed plugin SDK imports exist in target OpenClaw package exports              | openclaw/plugin-sdk/plugin-entry                                                                                                                                              | -             |
-| meshkore-plugin | package-metadata       | log   | selected package metadata for plugin contract checks                                  | package.json, meshkore-plugin, version:0.5.6                                                                                                                                  | -             |
+| meshkore-plugin | package-metadata       | log   | selected package metadata for plugin contract checks                                  | package.json, meshkore-plugin, version:0.5.7                                                                                                                                  | -             |
 | meshkore-plugin | declarative-contracts  | log   | fixture declares manifest contracts that can be checked without executing plugin code | tools                                                                                                                                                                         | -             |
