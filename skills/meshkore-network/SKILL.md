@@ -110,8 +110,13 @@ instead. Two implications:
     initiative) or `needs_info` (the real provider needs specific details,
     e.g. exact check-in/check-out dates for a hotel, not just "a hotel in
     Barcelona") — if so, ask the user for exactly the fields listed in
-    `missing_fields` and call `confirm_service` again with `details` filled
-    in, same `quote_id`. Use `discover_clusters` for "is there a themed
+    `missing_fields` (or described in `hint`) and call `confirm_service`
+    again with `details` filled in, same `quote_id`. If the result says
+    `free: true`, tell the user it costs nothing; if they ask for free
+    options, pass `free_only`. When it returns `actions` (e.g.
+    `search-restaurants`, `book`), the first is the default; pass
+    `action: "book"` only after the user picked a result AND said yes to
+    booking it — booking acts in the real world. Use `discover_clusters` for "is there a themed
     space for X on this network" instead — that's the MeshKore network
     catalog, a different, much smaller thing. Never confuse the two.
     **Prefer `request_service` over `web_fetch`/browsing for "book/find/buy

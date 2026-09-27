@@ -105,26 +105,144 @@ test("request_service — an offline result is never high-confidence, even with 
 	}
 });
 
-test("request_service — reputation picks the better-rated candidate over a higher raw score", async () => {
-	const restore = mockFetch(async (url, opts) => {
+// Shape of a real 2026-09 Oracle result (tablescout, verified live 2026-09-27).
+const TABLESCOUT = {
+	agent_id: "tablescout",
+	description: "Restaurant search and booking",
+	oracle_score: 1.39,
+	online: true,
+	operational: true,
+	domain_match: true,
+	free: true,
+	pricing: { unit: "request", amount: 0, currency: "free" },
+	endpoint: "https://dining.example.com",
+	invoke: [
+		{ skill: "search-restaurants", url: "https://dining.example.com/v1/search-restaurants" },
+		{ skill: "book", url: "https://dining.example.com/v1/book" }
+	]
+};
+
+test("request_service — an operational agent outranks a higher-ranked one that cannot answer", async () => {
+	const restore = mockFetch(async (url) => {
 		if (url === `${ORACLE_URL}/v1/search`) {
 			return jsonResponse(200, {
 				agents: [
-					{ agent_id: "flashy-but-unrated", description: "Flashy", oracle_score: 0.85 },
-					{ agent_id: "solid-reputation", description: "Solid", oracle_score: 0.8 }
+					{ agent_id: "heartbeat-only", description: "Flashy", oracle_score: 1.5, online: true, operational: false, domain_match: true },
+					{ ...TABLESCOUT, description: "Solid" }
 				]
 			});
 		}
-		if (String(url).includes("/v1/reputation/flashy-but-unrated")) return jsonResponse(200, { score: 0, message_through_count: 0 });
-		if (String(url).includes("/v1/reputation/solid-reputation")) return jsonResponse(200, { score: 0.99, message_through_count: 12 });
-		throw new Error(`unexpected fetch: ${url} ${JSON.stringify(opts)}`);
+		throw new Error(`unexpected fetch: ${url}`);
 	});
 	try {
 		const tools = createOracleTools(getState);
 		const request = tools.find((t) => t.name === "request_service");
-		// flashy: 0.85 (no rep data, unpenalized) vs solid: 0.8*0.7 + 0.99*0.3 = 0.857 — solid should win.
-		const result = await request.execute({ request: "anything" });
+		const result = await request.execute({ request: "italian dinner in Barcelona" });
 		assert.equal(result.description, "Solid");
+		assert.equal(result.confidence, "high");
+	} finally {
+		restore();
+	}
+});
+
+test("request_service — `online` alone is not operational, and a domain miss is low confidence", async () => {
+	for (const agent of [
+		{ agent_id: "a", oracle_score: 1.4, online: true, operational: false, domain_match: true },
+		{ agent_id: "b", oracle_score: 1.4, online: true, operational: true, domain_match: false }
+	]) {
+		const restore = mockFetch(async () => jsonResponse(200, { agents: [agent] }));
+		try {
+			const request = createOracleTools(getState).find((t) => t.name === "request_service");
+			const result = await request.execute({ request: "coffee near Plaza Catalunya" });
+			assert.equal(result.confidence, "low", `agent ${agent.agent_id}`);
+		} finally {
+			restore();
+		}
+	}
+});
+
+test("request_service — surfaces free + actions, and free_only reaches the Oracle filter", async () => {
+	let searchBody;
+	const restore = mockFetch(async (url, opts) => {
+		searchBody = JSON.parse(opts.body);
+		return jsonResponse(200, { agents: [TABLESCOUT] });
+	});
+	try {
+		const request = createOracleTools(getState).find((t) => t.name === "request_service");
+		const result = await request.execute({ request: "cena italiana en Barcelona", free_only: true });
+		assert.equal(searchBody.filters.free, true);
+		assert.equal(searchBody.prompt, "cena italiana en Barcelona");
+		assert.equal(result.free, true);
+		assert.deepEqual(result.actions, ["search-restaurants", "book"]);
+	} finally {
+		restore();
+	}
+});
+
+test("request_service — an empty result passes the Oracle's hint through", async () => {
+	const restore = mockFetch(async () => jsonResponse(200, { agents: [], hint: "Try broader terms." }));
+	try {
+		const request = createOracleTools(getState).find((t) => t.name === "request_service");
+		const result = await request.execute({ request: "traductor jurado barato" });
+		assert.equal(result.found, false);
+		assert.equal(result.hint, "Try broader terms.");
+	} finally {
+		restore();
+	}
+});
+
+test("confirm_service — calls the verified invoke URL for the chosen action, no second lookup", async () => {
+	const calledUrls = [];
+	const restore = mockFetch(async (url) => {
+		calledUrls.push(url);
+		if (url === `${ORACLE_URL}/v1/search`) return jsonResponse(200, { agents: [TABLESCOUT] });
+		if (url === "https://dining.example.com/v1/book") return jsonResponse(200, { status: "CONFIRMED_VENUE" });
+		if (url === `${ORACLE_URL}/v1/feedback`) return jsonResponse(200, { status: "ok" });
+		throw new Error(`unexpected fetch: ${url}`);
+	});
+	try {
+		const tools = createOracleTools(getState);
+		const quote = await tools.find((t) => t.name === "request_service").execute({ request: "dinner for two" });
+		const result = await tools.find((t) => t.name === "confirm_service").execute({ quote_id: quote.quote_id, action: "book" });
+		assert.equal(result.ok, true);
+		assert.equal(calledUrls.filter((u) => u === `${ORACLE_URL}/v1/search`).length, 1, "the Oracle is searched once, not again on confirm");
+		assert.ok(!calledUrls.some((u) => String(u).endsWith("/.well-known/agent.json")), "no card fetch when invoke is known");
+	} finally {
+		restore();
+	}
+});
+
+test("confirm_service — an unknown action is refused, never silently swapped for another", async () => {
+	const restore = mockFetch(async (url) => {
+		if (url === `${ORACLE_URL}/v1/search`) return jsonResponse(200, { agents: [TABLESCOUT] });
+		throw new Error(`no agent call expected: ${url}`);
+	});
+	try {
+		const tools = createOracleTools(getState);
+		const quote = await tools.find((t) => t.name === "request_service").execute({ request: "dinner for two" });
+		const result = await tools.find((t) => t.name === "confirm_service").execute({ quote_id: quote.quote_id, action: "boook" });
+		assert.equal(result.ok, false);
+		assert.deepEqual(result.actions, ["search-restaurants", "book"]);
+	} finally {
+		restore();
+	}
+});
+
+test("confirm_service — a quote from before a restart re-resolves through the Oracle's invoke[]", async () => {
+	const calledUrls = [];
+	const restore = mockFetch(async (url) => {
+		calledUrls.push(url);
+		if (url === `${ORACLE_URL}/v1/search`) return jsonResponse(200, { agents: [TABLESCOUT] });
+		if (url === "https://dining.example.com/v1/book") return jsonResponse(200, { status: "CONFIRMED_VENUE" });
+		if (url === `${ORACLE_URL}/v1/feedback`) return jsonResponse(200, { status: "ok" });
+		throw new Error(`unexpected fetch: ${url}`);
+	});
+	try {
+		// A fresh tool set knows no quotes — same as a restarted gateway.
+		const quoteId = Buffer.from(JSON.stringify({ agentId: "tablescout", request: "dinner" })).toString("base64url");
+		const result = await createOracleTools(getState).find((t) => t.name === "confirm_service").execute({ quote_id: quoteId, action: "book" });
+		assert.equal(result.ok, true);
+		assert.ok(calledUrls.includes("https://dining.example.com/v1/book"));
 	} finally {
 		restore();
 	}

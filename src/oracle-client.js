@@ -10,8 +10,10 @@
  * dependency, unit-testable standalone (see ../test/oracle-client.test.js).
  */
 
-export const ORACLE_URL = "https://meshkore-oracle.rjj.workers.dev";
-const USER_AGENT = "meshkore-plugin-oracle-client/0.2.0";
+// Canonical Oracle host since 2026-08-05. The old workers.dev origin still
+// answers, but it is a legacy alias, not the address to build on.
+export const ORACLE_URL = "https://oracle.meshkore.com";
+const USER_AGENT = "meshkore-plugin/0.5.6";
 const REQUEST_TIMEOUT_MS = 12_000;
 
 async function oracleRequest(method, path, body) {
@@ -68,8 +70,10 @@ async function oracleRequest(method, path, body) {
  * sending it now means no client-side change is needed once that
  * initiative lands server-side filtering/ranking logic.
  */
-export function searchAgents(query, { limit, maxPriceUsd, tags, onlineOnly } = {}) {
+export function searchAgents(query, { limit, maxPriceUsd, tags, onlineOnly, freeOnly } = {}) {
 	return oracleRequest("POST", "/v1/search", {
+		// `prompt` is the documented field; `query` stays for older deployments.
+		prompt: query,
 		query,
 		source: "mesh",
 		audience: "personal",
@@ -77,9 +81,27 @@ export function searchAgents(query, { limit, maxPriceUsd, tags, onlineOnly } = {
 			...(limit ? { limit } : {}),
 			...(maxPriceUsd ? { max_price_usd: maxPriceUsd } : {}),
 			...(tags ? { tags } : {}),
-			...(onlineOnly !== undefined ? { online_only: onlineOnly } : {})
+			...(onlineOnly !== undefined ? { online_only: onlineOnly } : {}),
+			...(freeOnly ? { free: true } : {})
 		}
 	});
+}
+
+/**
+ * The exact skill URL to call, straight from the Oracle's `invoke[]`.
+ *
+ * Every live result carries `invoke: [{skill, url}]` — one entry per skill
+ * the agent serves at `POST /v1/<skill-id>` (standard §26), and the Oracle's
+ * operational probe has already called each of those URLs (§27). That is a
+ * stronger source than the agent's self-reported card, and it names skills
+ * the card-path lookup can never reach: tablescout serves both
+ * `search-restaurants` and `book`. Returns null when the result predates
+ * `invoke[]`, so callers fall back to the endpoint + card path.
+ */
+export function pickInvoke(agent, skill) {
+	const entries = Array.isArray(agent?.invoke) ? agent.invoke.filter((e) => typeof e?.url === "string") : [];
+	if (!entries.length) return null;
+	return (skill && entries.find((e) => e.skill === skill)) || entries[0];
 }
 
 /** GET /v1/reputation/:agent_id — message-through reputation score (0..1). */
@@ -191,9 +213,11 @@ async function skillPathFromCard(endpoint) {
  * ultimately the user) to decide on.
  *
  * `path` is optional: when the caller does not pin one, it is read off the
- * agent's own card and only then falls back to `/v1/search`.
+ * agent's own card and only then falls back to `/v1/search`. `skill` picks
+ * one of the agent's `invoke[]` entries by id when it was resolved through
+ * the Oracle.
  */
-export async function contactAgent({ agentId, endpoint, path, body = {} }) {
+export async function contactAgent({ agentId, endpoint, path, skill, body = {} }) {
 	body = withFreeText(body);
 	let targetEndpoint = endpoint;
 	if (!targetEndpoint) {
@@ -206,7 +230,8 @@ export async function contactAgent({ agentId, endpoint, path, body = {} }) {
 		// Verified live 2026-07-23: the real API puts `endpoint` top-level on
 		// the result for some agents (not nested under agent_card at all,
 		// unlike the shape the retired skill's CLI assumed) — check both.
-		targetEndpoint = match.agent_card?.contact?.http ?? match.agent_card?.endpoint ?? match.endpoint;
+		targetEndpoint =
+			pickInvoke(match, skill)?.url ?? match.agent_card?.contact?.http ?? match.agent_card?.endpoint ?? match.endpoint;
 		if (!targetEndpoint) {
 			throw new Error(`agent "${agentId}" has no public HTTP endpoint`);
 		}

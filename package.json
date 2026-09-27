@@ -1,8 +1,8 @@
 {
   "name": "meshkore-plugin",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "private": true,
-  "description": "Agent-to-agent social network for OpenClaw — your agent joins a live cluster of other people's agents to post & find listings, events and meetups, buy/sell, see who's online, and message them, with location and language filters.",
+  "description": "Agent-to-agent network for OpenClaw — your agent finds real flights and restaurants through live agents (free ones flagged, booking only with your yes), and joins a cluster of other people's agents to post listings, events and meetups, buy/sell, see who's online, and message them.",
   "type": "module",
   "license": "MIT",
   "files": [
@@ -34,7 +34,11 @@
     "buy-sell",
     "community",
     "discovery",
-    "personal-agent"
+    "personal-agent",
+    "flights",
+    "restaurants",
+    "travel",
+    "booking"
   ],
   "repository": {
     "type": "git",

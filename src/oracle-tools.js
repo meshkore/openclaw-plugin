@@ -19,19 +19,18 @@
  */
 
 import { Type } from "typebox";
-import { searchAgents, getReputation, contactAgent, sendFeedback } from "./oracle-client.js";
+import { searchAgents, contactAgent, sendFeedback, pickInvoke } from "./oracle-client.js";
 
 /**
- * Relevance floor for the WINNING candidate — found live 2026-07-23
- * (OMSK-3/OCP11): common personal queries ("vuelo a Roma", "traductor
- * legal") return mostly unrelated dev-tooling/research repos, not real
- * consumer services, because the Oracle's catalog has no personal/
- * professional audience taxonomy yet (verified: `agent_card.category`/
- * `tags` are empty on every real result sampled). Below this score, the
- * result is still returned but marked low-confidence so the LLM says so
- * plainly instead of presenting a guess as a firm match.
+ * Relevance floor, used ONLY for results that predate the Oracle's
+ * `domain_match` flag. Found live 2026-07-23 (OMSK-3/OCP11): common personal
+ * queries used to return unrelated dev-tooling repos, so a weak score had to
+ * be called out as low-confidence rather than presented as a firm match.
  */
 const LOW_CONFIDENCE_SCORE = 0.75;
+
+/** Quotes resolved in this process. Bounded — a long-lived gateway must not grow without limit. */
+const MAX_REMEMBERED_QUOTES = 200;
 
 function encodeQuoteId(agentId, request) {
 	return Buffer.from(JSON.stringify({ agentId, request }), "utf8").toString("base64url");
@@ -46,27 +45,38 @@ function decodeQuoteId(quoteId) {
 }
 
 /**
- * Combines the Oracle's own semantic ranking with reputation, when
- * reputation actually has data. Verified live 2026-07-23 (a real bug this
- * check caught): the real API does NOT reliably return a `status:
- * "not_yet_rated"` marker — a brand-new, genuinely good hotel agent
- * (`roomrover`, oracle_score 0.93, real capabilities match) came back as
- * `{score: 0, message_through_count: 0, impression_count: 1}` with no
- * `status` field at all, which the original (wrong) check treated as a
- * real, bad rating and dragged a strong match down to "low confidence."
- * The robust signal for "no real track record yet" is `message_through_count`
- * being 0/absent — NOT the presence of any particular `status` string.
+ * Whether a result is genuinely callable right now. Standard §27:
+ * `operational` means the Oracle actually called the agent's skills and they
+ * answered; `online` is only a heartbeat. Results from before the probe
+ * existed carry no `operational`, so `online` is the fallback.
  */
-async function scoreCandidate(agent) {
-	const base = agent.oracle_score ?? 0;
-	try {
-		const rep = await getReputation(agent.agent_id);
-		const hasTrackRecord = typeof rep.score === "number" && (rep.message_through_count ?? 0) > 0;
-		if (!hasTrackRecord) return base;
-		return base * 0.7 + rep.score * 0.3;
-	} catch {
-		return base;
-	}
+function isLive(agent) {
+	return (agent.operational ?? agent.online) === true;
+}
+
+/**
+ * High confidence needs a live agent AND a real match. Since 2026-08 the
+ * Oracle says outright whether the agent's domain matches the request's
+ * intent (`domain_match`) — its scores now run past 1, so a fixed score
+ * floor no longer means anything. The floor stays only for older results.
+ */
+function confidenceOf(agent) {
+	if (!isLive(agent)) return "low";
+	if (typeof agent.domain_match === "boolean") return agent.domain_match ? "high" : "low";
+	return (agent.oracle_score ?? 0) >= LOW_CONFIDENCE_SCORE ? "high" : "low";
+}
+
+/**
+ * Keep the Oracle's order — it already folds reputation, semantics and mesh
+ * state into one ranking — but never let an agent that cannot answer beat
+ * one that can. (Before 0.5.6 this tool re-ranked with three extra
+ * reputation calls per request; the Oracle now returns that signal itself.)
+ */
+function rankCandidates(agents) {
+	return agents
+		.map((agent, index) => ({ agent, index }))
+		.sort((a, b) => Number(isLive(b.agent)) - Number(isLive(a.agent)) || a.index - b.index)
+		.map(({ agent }) => agent);
 }
 
 /**
@@ -74,6 +84,18 @@ async function scoreCandidate(agent) {
  * @param {{log?: (msg: string) => void}} [opts]
  */
 export function createOracleTools(getState, { log = () => {} } = {}) {
+	// quote_id → the winning agent's `invoke[]`, so confirm_service calls the
+	// exact skill URL the Oracle verified instead of searching the agent up
+	// again. Keyed by the quote itself: the LLM can only reach a URL this
+	// process was given by the Oracle, never one it wrote into a quote.
+	const quotes = new Map();
+
+	function remember(quoteId, invoke) {
+		quotes.delete(quoteId);
+		quotes.set(quoteId, invoke);
+		if (quotes.size > MAX_REMEMBERED_QUOTES) quotes.delete(quotes.keys().next().value);
+	}
+
 	async function ctx() {
 		const state = getState();
 		await state.ready;
@@ -106,44 +128,43 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 				"result as a plain outcome to the user — never mention 'agent', 'provider id', 'score', or " +
 				"'reputation'; those are internal. If nothing good was found, say so plainly rather than " +
 				"guessing. If a result is low-confidence, say that too, don't present it as a firm match. " +
-				"When the user agrees to proceed, call confirm_service with the returned quote_id.",
+				"If `free` is true, tell the user it costs nothing. `actions` lists what the provider can do " +
+				"next (e.g. search, then book). When the user agrees to proceed, call confirm_service with " +
+				"the returned quote_id.",
 			parameters: Type.Object({
 				request: Type.String({ description: "The user's request, verbatim." }),
-				budget_max: Type.Optional(Type.Number({ description: "Max price in USD, if the user gave one." }))
+				budget_max: Type.Optional(Type.Number({ description: "Max price in USD, if the user gave one." })),
+				free_only: Type.Optional(
+					Type.Boolean({ description: "Only providers that cost nothing — set when the user asks for free options." })
+				)
 			}),
-			execute: async ({ request, budget_max }) => {
+			execute: async ({ request, budget_max, free_only }) => {
 				await ctx();
-				const result = await searchAgents(request, { limit: 5, maxPriceUsd: budget_max });
+				const result = await searchAgents(request, { limit: 5, maxPriceUsd: budget_max, freeOnly: free_only });
 				const candidates = result.agents ?? [];
 				if (!candidates.length) {
-					return { found: false, reason: "no matching provider found" };
+					// The Oracle explains empty results ("try broader terms…") — pass
+					// that on so the model can retry sensibly instead of giving up.
+					return { found: false, reason: "no matching provider found", ...(result.hint ? { hint: result.hint } : {}) };
 				}
-				const scored = await Promise.all(
-					candidates.slice(0, 3).map(async (a) => ({ agent: a, score: await scoreCandidate(a) }))
-				);
-				scored.sort((a, b) => b.score - a.score);
-				const winner = scored[0];
+				const winner = rankCandidates(candidates)[0];
 				// Real data found empty `description` fields in production (e.g. a genuinely
 				// good hotel match, 2026-07-23) — fall back to capabilities so the LLM still
 				// has something presentable, without resorting to internal fields like agent_id.
 				const description =
-					winner.agent.description?.trim() ||
-					(winner.agent.capabilities?.length ? winner.agent.capabilities.join(", ") : "a matching provider");
-				// Verified live 2026-07-24: the Oracle's `audience: "personal"` filter
-				// (oracle-personal-audience) falls back to its full, mostly-scraped
-				// pool when NOTHING operational matches (e.g. "traductor legal
-				// barato" → an offline academic RAG paper) — that fallback is
-				// correct (never silently return zero), but this tool must not then
-				// call it "high confidence" just because its raw score is high. A
-				// result that isn't actually online is never high-confidence here,
-				// regardless of score.
-				const isOperational = winner.agent.online === true;
+					winner.description?.trim() ||
+					(winner.capabilities?.length ? winner.capabilities.join(", ") : "a matching provider");
+				const quoteId = encodeQuoteId(winner.agent_id, request);
+				const invoke = Array.isArray(winner.invoke) ? winner.invoke.filter((e) => typeof e?.url === "string") : [];
+				if (invoke.length) remember(quoteId, invoke);
 				return {
 					found: true,
 					description,
-					pricing: winner.agent.pricing ?? winner.agent.agent_card?.pricing ?? null,
-					confidence: isOperational && winner.score >= LOW_CONFIDENCE_SCORE ? "high" : "low",
-					quote_id: encodeQuoteId(winner.agent.agent_id, request)
+					pricing: winner.pricing ?? winner.agent_card?.pricing ?? null,
+					free: winner.free === true || winner.pricing?.amount === 0,
+					confidence: confidenceOf(winner),
+					...(invoke.length > 1 ? { actions: invoke.map((e) => e.skill) } : {}),
+					quote_id: quoteId
 				};
 			}
 		},
@@ -157,17 +178,32 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 				"the user for approval, this never pays on its own) or needing more specific details (e.g. a " +
 				"hotel needs exact check-in/check-out dates, not just 'a hotel in Barcelona') — if the result " +
 				"has `needs_info`, ask the user for exactly those fields and call this again with `details` " +
-				"filled in, using the same quote_id.",
+				"filled in, using the same quote_id. If request_service returned `actions`, pass `action` to " +
+				"pick one (e.g. 'book' after the user chose a result from 'search-restaurants') — an action " +
+				"that acts in the real world, like booking, needs the user's explicit yes to THAT action.",
 			parameters: Type.Object({
 				quote_id: Type.String(),
+				action: Type.Optional(Type.String({ description: "One of the `actions` request_service returned. Defaults to the first." })),
 				details: Type.Optional(
 					Type.Any({ description: "Structured fields the provider asked for (e.g. {city, checkin, checkout}), from a prior needs_info response." })
 				)
 			}),
-			execute: async ({ quote_id, details }) => {
+			execute: async ({ quote_id, action, details }) => {
 				const { handle } = await ctx();
 				const { agentId, request } = decodeQuoteId(quote_id);
-				const result = await contactAgent({ agentId, body: { query: request, ...(details ?? {}) } });
+				const body = { query: request, ...(details ?? {}) };
+				// Straight to the verified skill URL when this process resolved the
+				// quote; after a restart the quote is unknown, so look the agent up again.
+				const known = quotes.get(quote_id);
+				// A misspelt action must not quietly run a different one — "boook"
+				// falling back to search would look like a booking that never happened.
+				if (known && action && !known.some((e) => e.skill === action)) {
+					return { ok: false, error: `unknown action "${action}"`, actions: known.map((e) => e.skill), quote_id };
+				}
+				const target = known ? pickInvoke({ invoke: known }, action) : null;
+				const result = target
+					? await contactAgent({ endpoint: target.url, body })
+					: await contactAgent({ agentId, skill: action, body });
 				// Verified live 2026-07-23: real booking-style agents (e.g. a hotel)
 				// reject a bare NL query with a structured 400 listing what they
 				// actually need (`{error: "missing_fields", need: [...]}`)  — surface
