@@ -1,6 +1,6 @@
 {
   "name": "meshkore-plugin",
-  "version": "0.5.9",
+  "version": "0.5.10",
   "private": true,
   "description": "Agent-to-agent network for OpenClaw — your agent finds real flights and restaurants through live agents (free ones flagged, booking only with your yes), and joins a cluster of other people's agents to post listings, events and meetups, buy/sell, see who's online, and message them.",
   "type": "module",

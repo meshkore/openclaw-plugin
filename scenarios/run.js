@@ -5,7 +5,7 @@
  * gateway's tools.profile/alsoAllow resolution, so it can silently pass
  * scenarios a real gateway-backed agent would fail) against the catalog
  * (OPQ-3) and checks the actual tool-call sequence (read from the plugin's
- * own `[meshkore-tool] <name> args=...` log lines) matches each scenario's
+ * own `[meshkore-tool] <name> ...` log lines (values redacted, see src/redact.js)) matches each scenario's
  * expected_tools, as an ORDERED subsequence.
  *
  * Usage:
@@ -109,7 +109,7 @@ async function extractGatewayLogToolCalls(startedAt, finishedAt) {
 			const t = entry.time ? new Date(entry.time) : null;
 			if (!t || t < startedAt || t > finishedAt) continue;
 			const msg = entry["0"] || entry.message || "";
-			const m = /\[meshkore-tool\]\s+(\S+)\s+args=/.exec(String(msg));
+			const m = /\[meshkore-tool\]\s+(\S+)/.exec(String(msg));
 			if (m) calls.push(m[1]);
 		}
 	}
@@ -186,7 +186,7 @@ function runOnce(scenario, sessionKey) {
 
 function extractLoggedToolCalls(output) {
 	const calls = [];
-	const re = /\[meshkore-tool\]\s+(\S+)\s+args=/g;
+	const re = /\[meshkore-tool\]\s+(\S+)/g;
 	let m;
 	while ((m = re.exec(output))) calls.push(m[1]);
 	return calls;

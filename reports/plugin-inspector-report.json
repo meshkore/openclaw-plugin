@@ -616,14 +616,14 @@
         {
           "name": "before_tool_call",
           "file": "index.js",
-          "line": 132,
-          "ref": "index.js:132"
+          "line": 134,
+          "ref": "index.js:134"
         },
         {
           "name": "heartbeat_prompt_contribution",
           "file": "index.js",
-          "line": 147,
-          "ref": "index.js:147"
+          "line": 149,
+          "ref": "index.js:149"
         }
       ],
       "registrations": [
@@ -642,20 +642,20 @@
         {
           "name": "registerCli",
           "file": "index.js",
-          "line": 154,
-          "ref": "index.js:154"
+          "line": 156,
+          "ref": "index.js:156"
         },
         {
           "name": "registerService",
           "file": "index.js",
-          "line": 181,
-          "ref": "index.js:181"
+          "line": 183,
+          "ref": "index.js:183"
         },
         {
           "name": "registerTool",
           "file": "index.js",
-          "line": 121,
-          "ref": "index.js:121"
+          "line": 123,
+          "ref": "index.js:123"
         }
       ],
       "manifestContracts": [
@@ -680,6 +680,7 @@
         "src/novelty.js",
         "src/oracle-client.js",
         "src/oracle-tools.js",
+        "src/redact.js",
         "src/runtime.js",
         "src/tools.js"
       ],
@@ -716,7 +717,7 @@
       "package": {
         "path": "package.json",
         "name": "meshkore-plugin",
-        "version": "0.5.9",
+        "version": "0.5.10",
         "type": "module",
         "main": "./index.js",
         "npmPack": {
@@ -770,7 +771,7 @@
         {
           "path": "package.json",
           "name": "meshkore-plugin",
-          "version": "0.5.9",
+          "version": "0.5.10",
           "type": "module",
           "main": "./index.js",
           "npmPack": {
@@ -931,7 +932,7 @@
       "evidence": [
         "package.json",
         "meshkore-plugin",
-        "version:0.5.9"
+        "version:0.5.10"
       ]
     },
     {

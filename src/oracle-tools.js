@@ -20,6 +20,7 @@
 
 import { Type } from "typebox";
 import { searchAgents, contactAgent, sendFeedback, pickInvoke } from "./oracle-client.js";
+import { describeToolCall } from "./redact.js";
 
 /**
  * Relevance floor, used ONLY for results that predate the Oracle's
@@ -107,7 +108,7 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 		return {
 			...rest,
 			execute: async (params, ...args) => {
-				log(`[meshkore-tool] ${tool.name} args=${JSON.stringify(params)}`);
+				log(describeToolCall(tool.name, params));
 				return execute(params, ...args);
 			}
 		};

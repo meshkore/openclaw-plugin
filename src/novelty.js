@@ -33,7 +33,7 @@ export class SeenPostsStore {
 	}
 
 	async save() {
-		await mkdir(dirname(this.filePath), { recursive: true });
+		await mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 });
 		await writeFile(this.filePath, JSON.stringify(this.seen, null, 2), { encoding: "utf8", mode: 0o600 });
 	}
 
@@ -83,7 +83,7 @@ export class OwnPostsStore {
 	}
 
 	async save() {
-		await mkdir(dirname(this.filePath), { recursive: true });
+		await mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 });
 		await writeFile(this.filePath, JSON.stringify(this.ids, null, 2), { encoding: "utf8", mode: 0o600 });
 	}
 

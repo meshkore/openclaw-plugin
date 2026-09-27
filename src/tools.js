@@ -12,6 +12,7 @@
 
 import { Type } from "typebox";
 import { COMMONS_CLUSTER_ID } from "./mesh-client.js";
+import { describeToolCall } from "./redact.js";
 
 /**
  * `getState()` returns the CURRENT `{runtime, memory}` — a getter, not direct
@@ -21,7 +22,8 @@ import { COMMONS_CLUSTER_ID } from "./mesh-client.js";
  * only exist once this plugin's async init (disk-backed state) finishes. Each
  * tool's `execute` awaits `getState().ready` before touching them.
  *
- * `log`, when passed, is called as `log("[meshkore-tool] <name> args=<json>")`
+ * `log`, when passed, gets one redacted line per call (see redact.js) —
+ * ids verbatim, message/post text and tokens reduced to their size.
  * before every tool's `execute` runs — OPQ-4's E2E runner greps the gateway's
  * own log output for this exact prefix to know which tools a real turn
  * actually invoked (no reliance on an undocumented CLI JSON tool-call shape).
@@ -44,7 +46,7 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 		return {
 			...rest,
 			execute: async (params, ...args) => {
-				log(`[meshkore-tool] ${tool.name} args=${JSON.stringify(params)}`);
+				log(describeToolCall(tool.name, params));
 				return execute(params, ...args);
 			}
 		};
@@ -262,7 +264,7 @@ export function createMeshTools(getState, { log = () => {} } = {}) {
 					note:
 						created.visibility === "private"
 							? "join token stored internally — call get_cluster_invite to retrieve it for sharing with a friend."
-							: "admin_token stored internally by the plugin — ask explicitly to reveal it."
+							: "admin_token stored internally by the plugin, never shown to the model — the user can back it up with `openclaw meshkore admin-token <cluster_id>`."
 				};
 			}
 		},

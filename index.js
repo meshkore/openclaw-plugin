@@ -96,7 +96,9 @@ const meshkore_plugin_default = definePluginEntry({
 			// specific to meshkore; any plugin with a background monitor faces
 			// the same problem and should use the same hook.
 			state.deliver = (text) => {
-				log(text); // still keep a server-side debug trail
+				// Size only: the text is a stranger's message or a listing, and the
+				// gateway log is not where it belongs (ClawHub audit, 0.5.9).
+				log(`network update queued (${text.length} chars)`);
 				state.pendingNovelty.push(text);
 			};
 

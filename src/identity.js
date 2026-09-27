@@ -39,7 +39,7 @@ export async function loadOrCreateIdentity(filePath, { preferredHandle } = {}) {
 		if (err.code !== "ENOENT") throw err;
 	}
 	const identity = { handle: preferredHandle || generateHandle(), created: new Date().toISOString() };
-	await mkdir(dirname(filePath), { recursive: true });
+	await mkdir(dirname(filePath), { recursive: true, mode: 0o700 });
 	await writeFile(filePath, JSON.stringify(identity, null, 2), { encoding: "utf8", mode: 0o600 });
 	return identity;
 }

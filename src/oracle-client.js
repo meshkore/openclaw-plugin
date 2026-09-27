@@ -13,7 +13,7 @@
 // Canonical Oracle host since 2026-08-05. The old workers.dev origin still
 // answers, but it is a legacy alias, not the address to build on.
 export const ORACLE_URL = "https://oracle.meshkore.com";
-const USER_AGENT = "meshkore-plugin/0.5.9";
+const USER_AGENT = "meshkore-plugin/0.5.10";
 const REQUEST_TIMEOUT_MS = 12_000;
 
 async function oracleRequest(method, path, body) {

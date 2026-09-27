@@ -41,7 +41,7 @@ export class InterestsMemory {
 	}
 
 	async save() {
-		await mkdir(dirname(this.filePath), { recursive: true });
+		await mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 });
 		await writeFile(this.filePath, JSON.stringify({ interests: this.interests }, null, 2), { encoding: "utf8", mode: 0o600 });
 	}
 
