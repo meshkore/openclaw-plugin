@@ -30,8 +30,6 @@ test("approvals — reading and searching never prompt", () => {
 	for (const tool of ["read_board", "list_boards", "list_online_agents", "request_service", "discover_clusters"]) {
 		assert.equal(approvalFor(tool, {}), undefined, tool);
 	}
-	assert.equal(approvalFor("confirm_service", {}), undefined, "a plain confirm runs the provider's search");
-	assert.equal(approvalFor("confirm_service", { action: "search-restaurants" }), undefined);
 });
 
 test("approvals — prompt text respects the Gateway caps and shows what will be sent", () => {
@@ -45,4 +43,20 @@ test("approvals — the hook only ever gates this plugin's own tools", () => {
 	assert.ok(!GATED_TOOLS.has("web_fetch"));
 	assert.ok(!GATED_TOOLS.has("exec"));
 	assert.ok(GATED_TOOLS.has("delete_cluster"));
+});
+
+test("approvals — every confirm_service asks, even without an action (a default skill may transact)", () => {
+	for (const params of [{}, { action: "search-restaurants" }, { action: "book", details: { party_size: 2 } }]) {
+		const a = approvalFor("confirm_service", params, { autoPublish: true });
+		assert.ok(a, JSON.stringify(params));
+		assert.deepEqual(a.allowedDecisions, ["allow-once", "deny"]);
+	}
+	assert.match(approvalFor("confirm_service", { action: "book" }).title, /book/);
+});
+
+test("approvals — a post's prompt shows the city and language it will be stamped with", () => {
+	const a = approvalFor("post_to_board", { board_id: "buysell", cluster_id: "c_1", title: "Bike", body: "150€" }, { homeLocation: "Seville, Spain", lang: "es" });
+	assert.match(a.description, /Visible city: Seville, Spain · lang es/);
+	const b = approvalFor("post_to_board", { board_id: "buysell", cluster_id: "c_1", title: "Bike", body: "150€" });
+	assert.doesNotMatch(b.description, /Visible city/);
 });

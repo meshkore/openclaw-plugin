@@ -131,7 +131,11 @@ const meshkore_plugin_default = definePluginEntry({
 		// Registered only for this plugin's own tools; everything else passes.
 		api.on("before_tool_call", async (event) => {
 			if (!GATED_TOOLS.has(event.toolName)) return;
-			const requireApproval = approvalFor(event.toolName, event.params ?? {}, { autoPublish: config.auto_publish === true });
+			const requireApproval = approvalFor(event.toolName, event.params ?? {}, {
+				autoPublish: config.auto_publish === true,
+				homeLocation: config.home_location,
+				lang: config.lang
+			});
 			return requireApproval ? { requireApproval } : undefined;
 		});
 

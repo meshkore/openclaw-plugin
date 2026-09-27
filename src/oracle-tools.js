@@ -118,11 +118,11 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 			name: "request_service",
 			label: "Ask for anything a third party could do for you",
 			description:
-				"Ask for ANYTHING you'd want a real-world provider to do — book a flight/hotel/car, buy a " +
-				"product, get a translation or professional service done, find a restaurant, anything a " +
-				"person would normally search a website or call a business for. Describe it in plain " +
-				"language, exactly as the user said it — this finds and evaluates the best match across " +
-				"69,000+ providers automatically. This is a DIFFERENT, much larger catalog than " +
+				"Find a live provider on the MeshKore network for a real-world service — a flight, a " +
+				"restaurant, a hotel, a place. Use it when the user asks for this THROUGH MeshKore, or agreed " +
+				"to your offer to check MeshKore; for a generic request, offer first instead of calling it. " +
+				"Pass the request in plain language, exactly as the user said it — this finds and evaluates " +
+				"the best match across 69,000+ providers. This is a DIFFERENT, much larger catalog than " +
 				"discover_clusters/Boards (which only cover the MeshKore Cluster/Wall/Board network) — use " +
 				"this one for real-world services, not for anything about clusters/Boards/Wall. Present the " +
 				"result as a plain outcome, and say it came from a provider found on the MeshKore network — " +
@@ -175,7 +175,8 @@ export function createOracleTools(getState, { log = () => {} } = {}) {
 			description:
 				"Complete a request from request_service — ONLY call this after the user has explicitly " +
 				"agreed to what request_service found (the description/price shown). This is the step that " +
-				"actually reaches out to the provider; it may come back needing payment (always surfaced to " +
+				"actually reaches out to the third-party provider with the user's request and details, so " +
+				"OpenClaw asks the user to approve every call. It may come back needing payment (always surfaced to " +
 				"the user for approval, this never pays on its own) or needing more specific details (e.g. a " +
 				"hotel needs exact check-in/check-out dates, not just 'a hotel in Barcelona') — if the result " +
 				"has `needs_info`, ask the user for exactly those fields and call this again with `details` " +
